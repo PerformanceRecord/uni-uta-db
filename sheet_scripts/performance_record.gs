@@ -354,6 +354,7 @@ function cleanupSongRecords() {
       key: artist + '\t' + title,
       note: noteRaw == null ? '' : String(noteRaw),
       linkDisplay: linkDisp,
+      linkRich: linkRich || null,
       linkUrl: linkUrl || '',
       updatedMs,
       songDateNum,
@@ -455,6 +456,21 @@ function cleanupSongRecords() {
         const startRow = archiveSheet.getLastRow() + 1;
         archiveSheet.getRange(startRow, CFG_SONG_CLEANUP.COL_START, rowsToAppend.length, CFG_SONG_CLEANUP.COL_END)
           .setValues(rowsToAppend);
+
+        // D列はハイパーリンク付きテキストを保持したまま履歴へ移動
+        const dRichValues = rowsToArchive
+          .slice()
+          .sort((a, b) => a - b)
+          .map(rowNum => {
+            const rec = recordMap[rowNum];
+            const rich = rec && rec.linkRich ? rec.linkRich : null;
+            if (rich) return [rich];
+            const text = rec && rec.linkDisplay ? rec.linkDisplay : '';
+            return [SpreadsheetApp.newRichTextValue().setText(text).build()];
+          });
+        archiveSheet
+          .getRange(startRow, CFG_SONG_CLEANUP.COL_LINK, dRichValues.length, 1)
+          .setRichTextValues(dRichValues);
       }
     }
     if (rowsToDeleteDesc.length > 0) {
