@@ -95,12 +95,22 @@ function headersToObject(headers) {
     let topMenuCollapsed = false;
     let topSwipeCardIndex = 0;
 
-    function setupSwipeTrack({ wrap, track, panelWidthPercent = 50, onCardChange = null }) {
+    function setupSwipeTrack({
+      wrap,
+      track,
+      panelWidthPercent = 50,
+      onCardChange = null,
+      allowInteractiveStart = false,
+    }) {
       let current = 0;
       let dragging = false;
       let startX = 0;
+      let startY = 0;
       let deltaX = 0;
+      let deltaY = 0;
       let pointerId = null;
+      let gestureLocked = false;
+      let gestureIsHorizontal = false;
 
       const setCard = (index, withAnimation = true) => {
         current = Math.max(0, Math.min(1, index));
@@ -118,6 +128,15 @@ function headersToObject(headers) {
       const onPointerMove = (evt) => {
         if (!dragging || evt.pointerId !== pointerId) return;
         deltaX = evt.clientX - startX;
+        deltaY = evt.clientY - startY;
+        if (!gestureLocked) {
+          const moveAmount = Math.max(Math.abs(deltaX), Math.abs(deltaY));
+          if (moveAmount < 6) return;
+          gestureLocked = true;
+          gestureIsHorizontal = Math.abs(deltaX) >= Math.abs(deltaY);
+        }
+        if (!gestureIsHorizontal) return;
+        evt.preventDefault();
         const base = -current * panelWidthPercent;
         const ratio = (deltaX / wrap.clientWidth) * panelWidthPercent;
         const next = Math.max(-panelWidthPercent, Math.min(0, base + ratio));
@@ -129,6 +148,15 @@ function headersToObject(headers) {
         dragging = false;
         track.classList.remove('dragging');
         track.releasePointerCapture(pointerId);
+        if (!gestureIsHorizontal) {
+          setCard(current, false);
+          pointerId = null;
+          deltaX = 0;
+          deltaY = 0;
+          gestureLocked = false;
+          gestureIsHorizontal = false;
+          return;
+        }
         const threshold = getThreshold();
         if (Math.abs(deltaX) > threshold) {
           if (deltaX < 0) setCard(current + 1);
@@ -138,15 +166,22 @@ function headersToObject(headers) {
         }
         pointerId = null;
         deltaX = 0;
+        deltaY = 0;
+        gestureLocked = false;
+        gestureIsHorizontal = false;
       };
 
       track.addEventListener('pointerdown', (evt) => {
         if (evt.pointerType === 'mouse' && evt.button !== 0) return;
         const interactiveTarget = evt.target?.closest?.('button, input, select, textarea, label, a');
-        if (interactiveTarget) return;
+        if (interactiveTarget && !allowInteractiveStart) return;
         dragging = true;
         startX = evt.clientX;
+        startY = evt.clientY;
         deltaX = 0;
+        deltaY = 0;
+        gestureLocked = false;
+        gestureIsHorizontal = false;
         pointerId = evt.pointerId;
         track.classList.add('dragging');
         track.setPointerCapture(pointerId);
@@ -240,6 +275,7 @@ function headersToObject(headers) {
         wrap,
         track,
         panelWidthPercent: 50,
+        allowInteractiveStart: true,
         onCardChange: (index) => {
           topSwipeCardIndex = index;
           updatePageIndicator(topPageIndicator, index);
@@ -298,6 +334,7 @@ function headersToObject(headers) {
         wrap,
         track,
         panelWidthPercent: 50,
+        allowInteractiveStart: true,
         onCardChange: (index) => {
           updatePageIndicator(bottomPageIndicator, index);
         },
