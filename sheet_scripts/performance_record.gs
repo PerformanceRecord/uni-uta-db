@@ -42,7 +42,7 @@ const CFG_SONG_CLEANUP = {
   COL_UPDATED: 7,      // G列（最新更新日）
   COL_START: 1,        // A列
   COL_END: 7,          // G列まで取得
-  ARCHIVE_SHEET_NAME: 'archive', // 退避先シート
+  ARCHIVE_SHEET_NAME: '履歴', // 退避先シート
   DRY_RUN: false,
   LOG_LIMIT: 200
 };
@@ -290,7 +290,7 @@ function exportSinceDates(selectedDateStrs) {
  * 判定ルール
  * 1) A列アーティスト名 + B列曲名 が一致する行を同一歌唱曲データとする
  * 2) 同一曲内で D列リンクが完全一致する行は二重登録
- *    → 1件だけ残し、重複分は行ごと削除（archiveへは移動しない）
+ *    → 1件だけ残し、重複分は履歴シートへ移動
  *    → 残す行は古い方を優先
  *      （G列が古い方。同値/空欄なら上にある行）
  * 3) 同一曲内で C列またはD列が異なるものは別日歌唱候補
@@ -298,7 +298,7 @@ function exportSinceDates(selectedDateStrs) {
  *    → 同順位なら D列表示文字列の冒頭8桁(yyyymmdd) が新しい方を残す
  *    → さらに同値なら G列（最新更新日）が新しい方
  *    → さらに同値なら上にある行を残す
- *    ※ 残さない行は archive シートへ移動
+ *    ※ 残さない行は履歴シートへ移動
  */
 function cleanupSongRecords() {
   const sh = SpreadsheetApp.getActive().getSheetByName(CFG_SONG_CLEANUP.SHEET_NAME);
@@ -373,18 +373,17 @@ function cleanupSongRecords() {
     groups[rec.key].push(rec);
   });
 
-  const hardDeleteMap = {}; // row => reason（完全一致重複で削除）
-  const archiveMap = {}; // row => reason（優先順位整理でarchive移動）
+  const archiveMap = {}; // row => reason（履歴シートへ移動）
   const recordMap = {}; // row => record
   records.forEach(rec => { recordMap[rec.row] = rec; });
-  let exactDupHardDeleted = 0;
+  let exactDupArchived = 0;
   let rankedArchived = 0;
   const logs = [];
 
   Object.keys(groups).forEach(key => {
     const group = groups[key];
 
-    /***** Step 1: D列リンク完全一致重複（重複分は削除） *****/
+    /***** Step 1: D列リンク完全一致重複（重複分は履歴へ移動） *****/
     const urlBuckets = {};
     group.forEach(rec => {
       if (!rec.linkUrl) return;
@@ -402,19 +401,19 @@ function cleanupSongRecords() {
       const keeper = bucket[0];
       for (let i = 1; i < bucket.length; i++) {
         const rec = bucket[i];
-        if (!hardDeleteMap[rec.row]) {
-          hardDeleteMap[rec.row] =
-            `D列リンク完全一致の二重登録として削除（残す行: ${keeper.row} / URL: ${url}）`;
-          exactDupHardDeleted++;
+        if (!archiveMap[rec.row]) {
+          archiveMap[rec.row] =
+            `D列リンク完全一致の二重登録として履歴へ移動（残す行: ${keeper.row} / URL: ${url}）`;
+          exactDupArchived++;
           if (logs.length < CFG_SONG_CLEANUP.LOG_LIMIT) {
-            logs.push(`Row ${rec.row} 削除: D列リンク完全一致重複 → keep Row ${keeper.row} [${rec.artist} / ${rec.title}]`);
+            logs.push(`Row ${rec.row} 移動: D列リンク完全一致重複 → keep Row ${keeper.row} [${rec.artist} / ${rec.title}]`);
           }
         }
       }
     });
 
     /***** Step 2: 同一曲内で最優先1件だけ残す *****/
-    const remain = group.filter(rec => !hardDeleteMap[rec.row] && !archiveMap[rec.row]);
+    const remain = group.filter(rec => !archiveMap[rec.row]);
     if (remain.length <= 1) return;
 
     let keeper = remain[0];
@@ -426,9 +425,9 @@ function cleanupSongRecords() {
 
     remain.forEach(rec => {
       if (rec.row === keeper.row) return;
-      if (!hardDeleteMap[rec.row] && !archiveMap[rec.row]) {
+      if (!archiveMap[rec.row]) {
         archiveMap[rec.row] =
-          `同一曲の優先順位でarchive移動（残す行: ${keeper.row} / 種別優先: ${_sourceRankLabel_(keeper.sourceRank)} / 日付: ${keeper.songDateNum || 'なし'}）`;
+          `同一曲の優先順位で履歴へ移動（残す行: ${keeper.row} / 種別優先: ${_sourceRankLabel_(keeper.sourceRank)} / 日付: ${keeper.songDateNum || 'なし'}）`;
         rankedArchived++;
         if (logs.length < CFG_SONG_CLEANUP.LOG_LIMIT) {
           logs.push(`Row ${rec.row} 移動: 同一曲整理 → keep Row ${keeper.row} [${rec.artist} / ${rec.title}]`);
@@ -437,9 +436,8 @@ function cleanupSongRecords() {
     });
   });
 
-  const hardDeleteRows = Object.keys(hardDeleteMap).map(Number);
   const rowsToArchive = Object.keys(archiveMap).map(Number);
-  const rowsToDeleteDesc = [...new Set(hardDeleteRows.concat(rowsToArchive))].sort((a, b) => b - a);
+  const rowsToDeleteDesc = rowsToArchive.slice().sort((a, b) => b - a);
 
   if (!CFG_SONG_CLEANUP.DRY_RUN) {
     if (rowsToArchive.length > 0) {
@@ -466,18 +464,18 @@ function cleanupSongRecords() {
 
   Logger.log('--- 歌唱DB整理 結果 ---');
   Logger.log(`対象曲キー数: ${Object.keys(groups).length}`);
-  Logger.log(`削除/移動対象行数: ${rowsToDeleteDesc.length}${CFG_SONG_CLEANUP.DRY_RUN ? '（DRY RUN）' : ''}`);
-  Logger.log(`  - D列リンク完全一致重複（削除）: ${exactDupHardDeleted}`);
-  Logger.log(`  - 同一曲優先順位整理（archive移動）: ${rankedArchived}`);
+  Logger.log(`履歴移動対象行数: ${rowsToDeleteDesc.length}${CFG_SONG_CLEANUP.DRY_RUN ? '（DRY RUN）' : ''}`);
+  Logger.log(`  - D列リンク完全一致重複（履歴移動）: ${exactDupArchived}`);
+  Logger.log(`  - 同一曲優先順位整理（履歴移動）: ${rankedArchived}`);
   logs.forEach(line => Logger.log(line));
 
   const preview = logs.slice(0, 20).join('\n');
   SpreadsheetApp.getUi().alert(
     `歌唱DB整理 ${CFG_SONG_CLEANUP.DRY_RUN ? '（DRY RUN）' : '完了'}\n\n` +
     `対象曲キー数: ${Object.keys(groups).length}\n` +
-    `削除/移動対象行数: ${rowsToDeleteDesc.length}\n` +
-    `- D列リンク完全一致重複（削除）: ${exactDupHardDeleted}\n` +
-    `- 同一曲優先順位整理（archive移動）: ${rankedArchived}\n\n` +
+    `履歴移動対象行数: ${rowsToDeleteDesc.length}\n` +
+    `- D列リンク完全一致重複（履歴移動）: ${exactDupArchived}\n` +
+    `- 同一曲優先順位整理（履歴移動）: ${rankedArchived}\n\n` +
     (preview ? `詳細（先頭20件）:\n${preview}` : `${CFG_SONG_CLEANUP.DRY_RUN ? '対象候補' : '対象'}はありません。`)
   );
 }
@@ -640,7 +638,7 @@ function _toMsOrNull_(v) {
   return d ? d.getTime() : null;
 }
 
-// archive シートを用意し、必要ならヘッダーを整備する
+// 履歴シートを用意し、必要ならヘッダーを整備する
 function _ensureArchiveSheetWithHeader_(sourceSheet) {
   const ss = sourceSheet.getParent();
   let archive = ss.getSheetByName(CFG_SONG_CLEANUP.ARCHIVE_SHEET_NAME);
