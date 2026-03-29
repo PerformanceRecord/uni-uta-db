@@ -500,9 +500,7 @@ function headersToObject(headers) {
 
     function buildMyDanmaku(emoji) {
       const safeEmoji = normalizeMyEmoji(emoji);
-      const emojiLength = splitGraphemes(safeEmoji).length;
-      const repeat = emojiLength >= 2 ? 2 : 3;
-      return `🍣🧡${safeEmoji}`.repeat(repeat);
+      return `🍣🧡${safeEmoji}🍣🧡${safeEmoji}🍣🧡${safeEmoji}👏`;
     }
 
     function saveMyDanmakuCache(text) {
