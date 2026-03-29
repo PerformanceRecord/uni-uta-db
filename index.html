@@ -43,7 +43,7 @@
       --dummy-top-card-extra-collapsed: 7px;
       --layout-side-padding: var(--space-4);
       --pc-fluid-width-enabled: 1; /* 1: PCでA案(フル幅寄せ) / 0: 従来の1080px上限 */
-      --pc-content-max-width: 1080px;
+      --pc-content-max-width: 860px;
     }
 
     * { box-sizing: border-box; }
@@ -130,7 +130,7 @@
     .container {
       position: relative;
       z-index: 1;
-      width: min(100%, 1080px);
+      width: min(100%, var(--pc-content-max-width));
       margin: 0 auto;
       min-height: 100%;
       flex: 1;
@@ -301,7 +301,7 @@
       position: fixed;
       left: 0;
       transform: none;
-      width: min(calc(100vw - (var(--layout-side-padding) * 2)), 1080px);
+      width: min(calc(100vw - (var(--layout-side-padding) * 2)), var(--pc-content-max-width));
       top: calc(var(--space-4) + env(safe-area-inset-top));
       z-index: 70;
       padding-top: var(--space-2);
@@ -586,7 +586,7 @@
       position: fixed;
       left: 0;
       transform: none;
-      width: min(calc(100vw - (var(--layout-side-padding) * 2)), 1080px);
+      width: min(calc(100vw - (var(--layout-side-padding) * 2)), var(--pc-content-max-width));
       bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
       z-index: 60;
       box-shadow: 0 12px 22px rgb(15 23 42 / 24%);
@@ -785,7 +785,7 @@
       position: fixed;
       left: 0;
       transform: none;
-      width: min(calc(100vw - (var(--layout-side-padding) * 2)), 1080px);
+      width: min(calc(100vw - (var(--layout-side-padding) * 2)), var(--pc-content-max-width));
       top: calc(var(--space-4) + env(safe-area-inset-top));
       bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
       z-index: 10;
