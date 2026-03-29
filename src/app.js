@@ -417,11 +417,53 @@ function headersToObject(headers) {
       }
     }
 
+
+    function sanitizeUtf16(text) {
+      const raw = String(text || '');
+      let sanitized = '';
+      for (let i = 0; i < raw.length; i += 1) {
+        const code = raw.charCodeAt(i);
+        const isHigh = code >= 0xD800 && code <= 0xDBFF;
+        const isLow = code >= 0xDC00 && code <= 0xDFFF;
+
+        if (isHigh) {
+          const next = raw.charCodeAt(i + 1);
+          const nextIsLow = next >= 0xDC00 && next <= 0xDFFF;
+          if (nextIsLow) {
+            sanitized += raw[i] + raw[i + 1];
+            i += 1;
+          }
+          continue;
+        }
+
+        if (isLow) {
+          continue;
+        }
+
+        sanitized += raw[i];
+      }
+      return sanitized;
+    }
+
+    function splitGraphemes(text) {
+      if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+        const segmenter = new Intl.Segmenter('ja', { granularity: 'grapheme' });
+        return Array.from(segmenter.segment(text), ({ segment }) => segment);
+      }
+      return Array.from(text);
+    }
+
+    function normalizeMyEmoji(emoji) {
+      const safe = sanitizeUtf16((emoji || '').trim());
+      if (!safe) return '🙂';
+      const limited = splitGraphemes(safe).slice(0, 2).join('');
+      return limited || '🙂';
+    }
+
     function buildMyDanmaku(emoji) {
-      const raw = (emoji || '').trim();
-      const safeEmoji = raw || '🙂';
-      const emojiLength = Array.from(safeEmoji).length;
-      const repeat = emojiLength >= 3 ? 2 : 3;
+      const safeEmoji = normalizeMyEmoji(emoji);
+      const emojiLength = splitGraphemes(safeEmoji).length;
+      const repeat = emojiLength >= 2 ? 2 : 3;
       return `🍣🧡${safeEmoji}`.repeat(repeat);
     }
 
@@ -840,7 +882,10 @@ function headersToObject(headers) {
       }
 
       byId('saveMyDanmaku').addEventListener('click', () => {
-        const text = buildMyDanmaku(byId('myEmoji').value);
+        const emojiInput = byId('myEmoji');
+        const safeEmoji = normalizeMyEmoji(emojiInput.value);
+        emojiInput.value = safeEmoji;
+        const text = buildMyDanmaku(safeEmoji);
         saveMyDanmakuCache(text);
         byId('danmakuType').value = 'my';
         const select = byId('danmakuType');
