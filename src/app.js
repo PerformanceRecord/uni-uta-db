@@ -142,6 +142,8 @@ function headersToObject(headers) {
 
       track.addEventListener('pointerdown', (evt) => {
         if (evt.pointerType === 'mouse' && evt.button !== 0) return;
+        const interactiveTarget = evt.target?.closest?.('button, input, select, textarea, label, a');
+        if (interactiveTarget) return;
         dragging = true;
         startX = evt.clientX;
         deltaX = 0;
