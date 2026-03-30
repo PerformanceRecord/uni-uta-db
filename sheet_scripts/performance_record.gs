@@ -779,8 +779,8 @@ function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
 
     const latestRow = latest.rowValues;
 
-    // C列
-    row[2] = latestRow[2];
+    // C列: 既存値に履歴タグを追記（履歴先頭が 種別タグ の場合は先頭のみスキップ）
+    row[2] = _appendArchiveTagsToCurrentNote_(row[2], latestRow[2]);
     // E列
     if (lastCol >= 5) row[4] = latestRow[4];
     // G列以降
@@ -815,6 +815,31 @@ function _rowsEqual_(a, b) {
     if (a[i] !== b[i]) return false;
   }
   return true;
+}
+
+function _appendArchiveTagsToCurrentNote_(currentNote, archiveNote) {
+  const base = _splitTags_(currentNote);
+  const toAppend = _extractArchiveTagsForAppend_(archiveNote);
+  if (toAppend.length === 0) return base.join(',');
+  return base.concat(toAppend).join(',');
+}
+
+function _extractArchiveTagsForAppend_(archiveNote) {
+  const tags = _splitTags_(archiveNote);
+  if (tags.length === 0) return [];
+
+  const first = tags[0];
+  if (first === '歌枠' || first === '歌ってみた' || first === 'ショート') {
+    return tags.slice(1);
+  }
+  return tags;
+}
+
+function _splitTags_(value) {
+  return String(value == null ? '' : value)
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
 }
 
 /** シート上の図形ボタンに割り当てる入口（任意） */
