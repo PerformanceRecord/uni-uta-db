@@ -476,6 +476,12 @@ function cleanupSongRecords() {
     if (rowsToDeleteDesc.length > 0) {
       _deleteRowsDescendingInChunks_(sh, rowsToDeleteDesc);
     }
+
+    // 履歴シートの最新情報を同一楽曲へ反映（C列、E列、G列以降）
+    const syncResult = _syncLatestArchiveFieldsToPerformanceRecord_(sh);
+    Logger.log(
+      `履歴最新情報の反映: 対象曲数 ${syncResult.songCount}, 更新セル数 ${syncResult.updatedCellCount}, 更新行数 ${syncResult.updatedRowCount}`
+    );
   }
 
   Logger.log('--- 歌唱DB整理 結果 ---');
@@ -706,6 +712,109 @@ function _deleteRowsDescendingInChunks_(sh, rowNumbers) {
   }
 
   sh.deleteRows(startRow, count);
+}
+
+// 履歴シートの各曲目「最新データ」の C列・E列・G列以降を
+// Performance Record の同一楽曲へ反映する
+function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
+  const ss = sourceSheet.getParent();
+  const archive = ss.getSheetByName(CFG_SONG_CLEANUP.ARCHIVE_SHEET_NAME);
+  if (!archive) return { songCount: 0, updatedRowCount: 0, updatedCellCount: 0 };
+
+  const archiveLastRow = archive.getLastRow();
+  if (archiveLastRow <= 1) return { songCount: 0, updatedRowCount: 0, updatedCellCount: 0 };
+
+  const sourceLastRow = sourceSheet.getLastRow();
+  if (sourceLastRow < CFG_SONG_CLEANUP.DATA_START_ROW) {
+    return { songCount: 0, updatedRowCount: 0, updatedCellCount: 0 };
+  }
+
+  const lastCol = Math.max(sourceSheet.getLastColumn(), archive.getLastColumn());
+  const archiveValues = archive.getRange(2, 1, archiveLastRow - 1, lastCol).getValues();
+
+  // A+B ごとに履歴の最新行を選ぶ（G列日付優先、同値は下の行優先）
+  const latestByKey = {};
+  for (let i = 0; i < archiveValues.length; i++) {
+    const row = archiveValues[i];
+    const artist = _normalizeSongKeyText_(row[CFG_SONG_CLEANUP.COL_ARTIST - 1]);
+    const title = _normalizeSongKeyText_(row[CFG_SONG_CLEANUP.COL_TITLE - 1]);
+    if (!artist || !title) continue;
+
+    const key = artist + '\t' + title;
+    const candidate = {
+      rowIndex: i + 2, // シート行番号
+      rowValues: row,
+      updatedMs: _toMsOrNull_(row[CFG_SONG_CLEANUP.COL_UPDATED - 1])
+    };
+
+    const current = latestByKey[key];
+    if (!current) {
+      latestByKey[key] = candidate;
+      continue;
+    }
+
+    const curMs = current.updatedMs == null ? -Infinity : current.updatedMs;
+    const newMs = candidate.updatedMs == null ? -Infinity : candidate.updatedMs;
+    if (newMs > curMs || (newMs === curMs && candidate.rowIndex > current.rowIndex)) {
+      latestByKey[key] = candidate;
+    }
+  }
+
+  const sourceNumRows = sourceLastRow - CFG_SONG_CLEANUP.DATA_START_ROW + 1;
+  const sourceRange = sourceSheet.getRange(CFG_SONG_CLEANUP.DATA_START_ROW, 1, sourceNumRows, lastCol);
+  const sourceValues = sourceRange.getValues();
+
+  let updatedRowCount = 0;
+  let updatedCellCount = 0;
+  let hasAnyUpdate = false;
+  for (let i = 0; i < sourceValues.length; i++) {
+    const row = sourceValues[i];
+    const original = row.slice();
+    const artist = _normalizeSongKeyText_(row[CFG_SONG_CLEANUP.COL_ARTIST - 1]);
+    const title = _normalizeSongKeyText_(row[CFG_SONG_CLEANUP.COL_TITLE - 1]);
+    if (!artist || !title) continue;
+
+    const latest = latestByKey[artist + '\t' + title];
+    if (!latest) continue;
+
+    const latestRow = latest.rowValues;
+
+    // C列
+    row[2] = latestRow[2];
+    // E列
+    if (lastCol >= 5) row[4] = latestRow[4];
+    // G列以降
+    for (let c = 6; c < lastCol; c++) {
+      row[c] = latestRow[c];
+    }
+
+    if (!_rowsEqual_(row, original)) {
+      hasAnyUpdate = true;
+      updatedRowCount++;
+      if (row[2] !== original[2]) updatedCellCount++;
+      if (lastCol >= 5 && row[4] !== original[4]) updatedCellCount++;
+      for (let c = 6; c < lastCol; c++) {
+        if (row[c] !== original[c]) updatedCellCount++;
+      }
+    }
+  }
+
+  if (hasAnyUpdate) {
+    sourceRange.setValues(sourceValues);
+  }
+  return {
+    songCount: Object.keys(latestByKey).length,
+    updatedRowCount,
+    updatedCellCount
+  };
+}
+
+function _rowsEqual_(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }
 
 /** シート上の図形ボタンに割り当てる入口（任意） */
