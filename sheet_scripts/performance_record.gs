@@ -330,6 +330,7 @@ function cleanupSongRecords() {
     const artistRaw  = values[i][CFG_SONG_CLEANUP.COL_ARTIST - 1];
     const titleRaw   = values[i][CFG_SONG_CLEANUP.COL_TITLE - 1];
     const noteRaw    = values[i][CFG_SONG_CLEANUP.COL_NOTE - 1];
+    const noteRich   = richs[i][CFG_SONG_CLEANUP.COL_NOTE - 1];
     const linkDisp   = displays[i][CFG_SONG_CLEANUP.COL_LINK - 1] || '';
     const linkForm   = formulas[i][CFG_SONG_CLEANUP.COL_LINK - 1] || '';
     const linkRich   = richs[i][CFG_SONG_CLEANUP.COL_LINK - 1];
@@ -353,6 +354,7 @@ function cleanupSongRecords() {
       title,
       key: artist + '\t' + title,
       note: noteRaw == null ? '' : String(noteRaw),
+      noteRich: noteRich || null,
       linkDisplay: linkDisp,
       linkRich: linkRich || null,
       linkUrl: linkUrl || '',
@@ -456,6 +458,23 @@ function cleanupSongRecords() {
         const startRow = archiveSheet.getLastRow() + 1;
         archiveSheet.getRange(startRow, CFG_SONG_CLEANUP.COL_START, rowsToAppend.length, CFG_SONG_CLEANUP.COL_END)
           .setValues(rowsToAppend);
+
+        // C列もハイパーリンク付きテキストを保持したまま履歴へ移動
+        const cRichValues = rowsToArchive
+          .slice()
+          .sort((a, b) => a - b)
+          .map(rowNum => {
+            const rec = recordMap[rowNum];
+            const rich = rec && rec.noteRich ? rec.noteRich : null;
+            const text = rec && rec.note != null ? String(rec.note) : '';
+            if (rich) {
+              return [_cloneRichTextWithFallbackText_(rich, text)];
+            }
+            return [SpreadsheetApp.newRichTextValue().setText(text).build()];
+          });
+        archiveSheet
+          .getRange(startRow, CFG_SONG_CLEANUP.COL_NOTE, cRichValues.length, 1)
+          .setRichTextValues(cRichValues);
 
         // D列はハイパーリンク付きテキストを保持したまま履歴へ移動
         const dRichValues = rowsToArchive
@@ -731,6 +750,9 @@ function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
 
   const lastCol = Math.max(sourceSheet.getLastColumn(), archive.getLastColumn());
   const archiveValues = archive.getRange(2, 1, archiveLastRow - 1, lastCol).getValues();
+  const archiveNoteRichValues = archive
+    .getRange(2, CFG_SONG_CLEANUP.COL_NOTE, archiveLastRow - 1, 1)
+    .getRichTextValues();
 
   // A+B ごとに履歴の最新行を選ぶ（G列日付優先、同値は下の行優先）
   const latestByKey = {};
@@ -744,6 +766,7 @@ function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
     const candidate = {
       rowIndex: i + 2, // シート行番号
       rowValues: row,
+      noteRich: archiveNoteRichValues[i] ? archiveNoteRichValues[i][0] : null,
       updatedMs: _toMsOrNull_(row[CFG_SONG_CLEANUP.COL_UPDATED - 1])
     };
 
@@ -763,6 +786,14 @@ function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
   const sourceNumRows = sourceLastRow - CFG_SONG_CLEANUP.DATA_START_ROW + 1;
   const sourceRange = sourceSheet.getRange(CFG_SONG_CLEANUP.DATA_START_ROW, 1, sourceNumRows, lastCol);
   const sourceValues = sourceRange.getValues();
+  const sourceNoteRange = sourceSheet.getRange(
+    CFG_SONG_CLEANUP.DATA_START_ROW,
+    CFG_SONG_CLEANUP.COL_NOTE,
+    sourceNumRows,
+    1
+  );
+  const sourceNoteRichValues = sourceNoteRange.getRichTextValues();
+  const nextSourceNoteRichValues = sourceNoteRichValues.map(r => [r[0]]);
 
   let updatedRowCount = 0;
   let updatedCellCount = 0;
@@ -780,7 +811,12 @@ function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
     const latestRow = latest.rowValues;
 
     // C列: 既存値に履歴タグを追記（履歴先頭が 種別タグ の場合は先頭のみスキップ）
-    row[2] = _appendArchiveTagsToCurrentNote_(row[2], latestRow[2]);
+    const mergedNote = _appendArchiveTagsToCurrentNote_(row[2], latestRow[2]);
+    row[2] = mergedNote;
+    const currentNoteRich = sourceNoteRichValues[i] ? sourceNoteRichValues[i][0] : null;
+    const latestNoteRich = latest.noteRich || null;
+    nextSourceNoteRichValues[i][0] =
+      _buildMergedNoteRichText_(mergedNote, currentNoteRich, latestNoteRich);
     // E列
     if (lastCol >= 5) row[4] = latestRow[4];
     // G列以降
@@ -801,6 +837,7 @@ function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
 
   if (hasAnyUpdate) {
     sourceRange.setValues(sourceValues);
+    sourceNoteRange.setRichTextValues(nextSourceNoteRichValues);
   }
   return {
     songCount: Object.keys(latestByKey).length,
@@ -840,6 +877,28 @@ function _splitTags_(value) {
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
+}
+
+function _cloneRichTextWithFallbackText_(rich, fallbackText) {
+  const text = String(fallbackText == null ? '' : fallbackText);
+  if (!rich) return SpreadsheetApp.newRichTextValue().setText(text).build();
+  const richText = String(rich.getText ? rich.getText() : '');
+  if (richText !== text) return SpreadsheetApp.newRichTextValue().setText(text).build();
+  return rich.copy().build();
+}
+
+function _buildMergedNoteRichText_(mergedText, currentNoteRich, archiveNoteRich) {
+  const text = String(mergedText == null ? '' : mergedText);
+  const fromCurrent = _cloneRichTextWithFallbackText_(currentNoteRich, text);
+  const fromArchive = _cloneRichTextWithFallbackText_(archiveNoteRich, text);
+
+  const currentUrl = pickUrlFromRich(fromCurrent);
+  if (currentUrl) return fromCurrent;
+
+  const archiveUrl = pickUrlFromRich(fromArchive);
+  if (archiveUrl) return fromArchive;
+
+  return SpreadsheetApp.newRichTextValue().setText(text).build();
 }
 
 /** シート上の図形ボタンに割り当てる入口（任意） */
