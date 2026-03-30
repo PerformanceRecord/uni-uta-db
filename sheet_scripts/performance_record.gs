@@ -784,8 +784,9 @@ function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
   }
 
   const sourceNumRows = sourceLastRow - CFG_SONG_CLEANUP.DATA_START_ROW + 1;
-  const sourceRange = sourceSheet.getRange(CFG_SONG_CLEANUP.DATA_START_ROW, 1, sourceNumRows, lastCol);
-  const sourceValues = sourceRange.getValues();
+  const sourceValues = sourceSheet
+    .getRange(CFG_SONG_CLEANUP.DATA_START_ROW, 1, sourceNumRows, lastCol)
+    .getValues();
   const sourceNoteRange = sourceSheet.getRange(
     CFG_SONG_CLEANUP.DATA_START_ROW,
     CFG_SONG_CLEANUP.COL_NOTE,
@@ -794,6 +795,11 @@ function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
   );
   const sourceNoteRichValues = sourceNoteRange.getRichTextValues();
   const nextSourceNoteRichValues = sourceNoteRichValues.map(r => [r[0]]);
+
+  // D列のハイパーリンク(RichText)を保持するため、A:G全体の setValues は行わず
+  // C列・E列・G列以降のみ列単位で更新する。
+  const nextColEValues = sourceValues.map(r => [r[4]]);
+  const nextColsFromG = sourceValues.map(r => r.slice(6));
 
   let updatedRowCount = 0;
   let updatedCellCount = 0;
@@ -818,10 +824,16 @@ function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
     nextSourceNoteRichValues[i][0] =
       _buildMergedNoteRichText_(mergedNote, currentNoteRich, latestNoteRich);
     // E列
-    if (lastCol >= 5) row[4] = latestRow[4];
+    if (lastCol >= 5) {
+      row[4] = latestRow[4];
+      nextColEValues[i][0] = row[4];
+    }
     // G列以降
     for (let c = 6; c < lastCol; c++) {
       row[c] = latestRow[c];
+    }
+    if (lastCol > 6) {
+      nextColsFromG[i] = row.slice(6);
     }
 
     if (!_rowsEqual_(row, original)) {
@@ -836,8 +848,17 @@ function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
   }
 
   if (hasAnyUpdate) {
-    sourceRange.setValues(sourceValues);
     sourceNoteRange.setRichTextValues(nextSourceNoteRichValues);
+    if (lastCol >= 5) {
+      sourceSheet
+        .getRange(CFG_SONG_CLEANUP.DATA_START_ROW, 5, sourceNumRows, 1)
+        .setValues(nextColEValues);
+    }
+    if (lastCol > 6) {
+      sourceSheet
+        .getRange(CFG_SONG_CLEANUP.DATA_START_ROW, 7, sourceNumRows, lastCol - 6)
+        .setValues(nextColsFromG);
+    }
   }
   return {
     songCount: Object.keys(latestByKey).length,
