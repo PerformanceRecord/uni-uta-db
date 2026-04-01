@@ -101,6 +101,7 @@ function headersToObject(headers) {
       panelWidthPercent = 50,
       onCardChange = null,
       allowInteractiveStart = false,
+      enablePointerSwipe = true,
     }) {
       let current = 0;
       let dragging = false;
@@ -172,6 +173,8 @@ function headersToObject(headers) {
       };
 
       track.addEventListener('pointerdown', (evt) => {
+        const canSwipe = typeof enablePointerSwipe === 'function' ? enablePointerSwipe() : enablePointerSwipe;
+        if (!canSwipe) return;
         if (evt.pointerType === 'mouse' && evt.button !== 0) return;
         const interactiveTarget = evt.target?.closest?.('button, input, select, textarea, label, a');
         const isMousePointer = evt.pointerType === 'mouse';
@@ -229,6 +232,13 @@ function headersToObject(headers) {
     }
 
     function setTopMenuCollapsed(nextCollapsed) {
+      if (!isMobileLayout()) {
+        topMenuCollapsed = false;
+        applyTopFormCollapsedState();
+        syncTopPanelSize();
+        updateDummyCardsHeight();
+        return;
+      }
       topMenuCollapsed = Boolean(nextCollapsed);
       applyTopFormCollapsedState();
       syncTopPanelSize();
@@ -270,6 +280,8 @@ function headersToObject(headers) {
       const topPageIndicator = byId('topPageIndicator');
       const collapseButton = byId('collapseTopMenu');
       const expandButton = byId('expandTopMenu');
+      const topSwitchFilter = byId('topSwitchFilter');
+      const topSwitchMemo = byId('topSwitchMemo');
 
       if (!wrap || !track) return;
       const topSwipe = setupSwipeTrack({
@@ -277,6 +289,7 @@ function headersToObject(headers) {
         track,
         panelWidthPercent: 50,
         allowInteractiveStart: true,
+        enablePointerSwipe: () => isMobileLayout(),
         onCardChange: (index) => {
           topSwipeCardIndex = index;
           updatePageIndicator(topPageIndicator, index);
@@ -284,11 +297,15 @@ function headersToObject(headers) {
           topForm?.classList.toggle('memo-active', isMemo);
           if (isMemo) {
             setTopMenuCollapsed(false);
-            return;
+          } else {
+            applyTopFormCollapsedState();
+            syncTopPanelSize();
+            updateDummyCardsHeight();
           }
-          applyTopFormCollapsedState();
-          syncTopPanelSize();
-          updateDummyCardsHeight();
+          topSwitchFilter?.classList.toggle('active', index === 0);
+          topSwitchFilter?.setAttribute('aria-pressed', String(index === 0));
+          topSwitchMemo?.classList.toggle('active', index === 1);
+          topSwitchMemo?.setAttribute('aria-pressed', String(index === 1));
         },
       });
       setTopSwipeCard = topSwipe.setCard;
@@ -309,6 +326,8 @@ function headersToObject(headers) {
         if (!topForm) return;
         setTopMenuCollapsed(false);
       });
+      topSwitchFilter?.addEventListener('click', () => setTopSwipeCard(0));
+      topSwitchMemo?.addEventListener('click', () => setTopSwipeCard(1));
 
       syncTopPanelSize();
       window.addEventListener('resize', syncTopPanelSize);
@@ -318,6 +337,8 @@ function headersToObject(headers) {
       const wrap = byId('bottomSwipeWrap');
       const track = byId('bottomSwipeTrack');
       const bottomPageIndicator = byId('bottomPageIndicator');
+      const bottomSwitchSearch = byId('bottomSwitchSearch');
+      const bottomSwitchMyDanmaku = byId('bottomSwitchMyDanmaku');
       const stopHint = () => {
         track.classList.remove('hinting');
       };
@@ -336,8 +357,13 @@ function headersToObject(headers) {
         track,
         panelWidthPercent: 50,
         allowInteractiveStart: true,
+        enablePointerSwipe: () => isMobileLayout(),
         onCardChange: (index) => {
           updatePageIndicator(bottomPageIndicator, index);
+          bottomSwitchSearch?.classList.toggle('active', index === 0);
+          bottomSwitchSearch?.setAttribute('aria-pressed', String(index === 0));
+          bottomSwitchMyDanmaku?.classList.toggle('active', index === 1);
+          bottomSwitchMyDanmaku?.setAttribute('aria-pressed', String(index === 1));
         },
       });
       const setCard = bottomSwipe.setCard;
@@ -355,6 +381,8 @@ function headersToObject(headers) {
       byId('saveMyDanmaku').addEventListener('click', () => {
         setCard(0);
       });
+      bottomSwitchSearch?.addEventListener('click', () => setCard(0));
+      bottomSwitchMyDanmaku?.addEventListener('click', () => setCard(1));
 
       setSwipeCard = setCard;
       triggerSwipeHint = startHint;
@@ -973,6 +1001,7 @@ function headersToObject(headers) {
       media.addEventListener('change', () => {
         collapseExpandedCards();
         if (!isMobileLayout()) {
+          setTopMenuCollapsed(false);
           rows.querySelectorAll('.song-card').forEach((card) => card.classList.add('expanded'));
         }
         updateScrollTopOffset();
