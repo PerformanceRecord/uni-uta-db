@@ -41,7 +41,9 @@
       --dummy-top-card-height-fixed: auto;
       --dummy-top-card-extra-expanded: 3px;
       --dummy-top-card-extra-collapsed: 7px;
-      --pc-content-max-width: 900px;
+      --layout-side-padding: var(--space-4);
+      --pc-fluid-width-enabled: 1; /* 1: PCでA案(フル幅寄せ) / 0: 従来の1080px上限 */
+      --pc-content-max-width: 860px;
     }
 
     * { box-sizing: border-box; }
@@ -128,9 +130,6 @@
     .container {
       position: relative;
       z-index: 1;
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-2);
       width: min(100%, var(--pc-content-max-width));
       margin: 0 auto;
       min-height: 100%;
@@ -298,35 +297,12 @@
       outline-offset: 1px;
     }
 
-    .top-form,
-    .middle-form,
-    .bottom-form {
-      position: relative;
-      width: 100%;
-      max-width: 100%;
-    }
-
-    .desktop-switch {
-      display: none;
-      gap: var(--space-1);
-      align-items: center;
-    }
-
-    .desktop-switch button {
-      min-height: 28px;
-      padding: 4px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      background: color-mix(in srgb, var(--surface-2) 90%, white 10%);
-    }
-
-    .desktop-switch button.active {
-      background: #1e90ff;
-      color: #ffffff;
-      border-color: #0b5db7;
-    }
-
     .top-form {
+      position: fixed;
+      left: 0;
+      transform: none;
+      width: min(calc(100vw - (var(--layout-side-padding) * 2)), var(--pc-content-max-width));
+      top: calc(var(--space-4) + env(safe-area-inset-top));
       z-index: 70;
       padding-top: var(--space-2);
       padding-bottom: 0;
@@ -607,6 +583,11 @@
     }
 
     .bottom-form {
+      position: fixed;
+      left: 0;
+      transform: none;
+      width: min(calc(100vw - (var(--layout-side-padding) * 2)), var(--pc-content-max-width));
+      bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
       z-index: 60;
       box-shadow: 0 12px 22px rgb(15 23 42 / 24%);
     }
@@ -714,6 +695,10 @@
     }
 
     @media (max-width: 860px) {
+      :root {
+        --layout-side-padding: var(--space-2);
+      }
+
       body { padding: var(--space-2); }
       .card :is(input, select) { font-size: 16px; }
       #memoInput { font-size: 16px; }
@@ -721,12 +706,16 @@
         width: 100%;
         gap: var(--space-2);
         min-height: calc(100dvh - (var(--space-2) * 2));
+        grid-template-rows: auto minmax(0, 1fr) auto;
       }
       .card,
       .top-form,
       .middle-form,
       .bottom-form { width: 100%; }
       .card { padding: var(--space-2); }
+      .bottom-form {
+        bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
+      }
       .top-summary { grid-template-columns: 1fr; }
       .top-advanced { grid-template-columns: 1fr; gap: var(--space-2); }
       .sort-row { grid-template-columns: auto auto; }
@@ -759,43 +748,24 @@
     }
 
     @media (min-width: 861px) {
-      body {
-        padding: var(--space-4);
-      }
-
-      .container {
-        width: 100%;
-        max-width: var(--pc-content-max-width);
-        height: calc(100dvh - (var(--space-4) * 2));
-        min-height: calc(100dvh - (var(--space-4) * 2));
-      }
-
-      .card,
-      .top-form,
-      .middle-form,
-      .bottom-form {
-        width: 100%;
-        max-width: var(--pc-content-max-width);
-        margin-inline: auto;
-      }
-
-      .desktop-switch {
-        display: inline-flex;
-      }
-
-      .page-indicator {
-        display: none;
-      }
-
       .top-fold-btn,
       .top-expand-btn {
         display: none !important;
       }
 
-      .top-form.collapsed .top-swipe-wrap,
+      .top-form,
+      .middle-form,
+      .bottom-form {
+        width: min(
+          calc(100vw - (var(--layout-side-padding) * 2)),
+          var(--pc-content-max-width)
+        );
+      }
+
       .top-swipe-wrap {
         height: var(--top-expanded-height);
       }
+
     }
 
     .song-cards {
@@ -809,11 +779,16 @@
 
     .middle-form {
       display: flex;
-      flex: 1;
       min-height: 0;
       padding: 0;
       background: transparent;
       border: 0;
+      position: fixed;
+      left: 0;
+      transform: none;
+      width: min(calc(100vw - (var(--layout-side-padding) * 2)), var(--pc-content-max-width));
+      top: calc(var(--space-4) + env(safe-area-inset-top));
+      bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
       z-index: 10;
       overflow: hidden;
     }
@@ -1172,10 +1147,6 @@
                   <span class="status" id="status"></span>
                 </span>
                 <div class="summary-actions">
-                  <div class="desktop-switch" id="topDesktopSwitch" aria-label="上部カード切り替え">
-                    <button id="topSwitchFilter" type="button" class="active" aria-pressed="true">絞り込み</button>
-                    <button id="topSwitchMemo" type="button" aria-pressed="false">メモ帳</button>
-                  </div>
                   <div class="summary-inline count-inline"><span id="selectedCount">0</span>/<span id="totalCount">0</span>曲</div>
                   <button id="collapseTopMenu" class="top-fold-btn" type="button" aria-label="絞り込みメニューを折りたたむ">折りたたみ</button>
                   <button id="expandTopMenu" class="top-expand-btn" type="button" aria-label="絞り込みメニューを展開">展開</button>
@@ -1236,10 +1207,6 @@
 
     <section class="card bottom-form">
       <div class="page-indicator bottom-indicator" id="bottomPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
-      <div class="desktop-switch" id="bottomDesktopSwitch" aria-label="下部カード切り替え">
-        <button id="bottomSwitchSearch" type="button" class="active" aria-pressed="true">検索</button>
-        <button id="bottomSwitchMyDanmaku" type="button" aria-pressed="false">マイ弾幕</button>
-      </div>
       <div class="bottom-swipe-wrap" id="bottomSwipeWrap">
         <div class="bottom-swipe-track" id="bottomSwipeTrack">
           <section class="bottom-panel" aria-label="検索フォームカード">
