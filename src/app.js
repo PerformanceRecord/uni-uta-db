@@ -949,26 +949,8 @@ function headersToObject(headers) {
       };
 
       const updateScrollTopOffset = () => {
-        const container = byId('songsPage');
-        const topForm = byId('topForm');
-        const middleForm = document.querySelector('.middle-form');
         const bottomForm = document.querySelector('.bottom-form');
-        if (!bottomForm || !container) return;
-
-        const containerRect = container.getBoundingClientRect();
-        const sharedLeft = `${Math.round(containerRect.left)}px`;
-        const sharedWidth = `${Math.round(containerRect.width)}px`;
-
-        if (topForm) {
-          topForm.style.left = sharedLeft;
-          topForm.style.width = sharedWidth;
-        }
-        if (middleForm) {
-          middleForm.style.left = sharedLeft;
-          middleForm.style.width = sharedWidth;
-        }
-        bottomForm.style.left = sharedLeft;
-        bottomForm.style.width = sharedWidth;
+        if (!bottomForm) return;
 
         const rect = bottomForm.getBoundingClientRect();
         const overlap = Math.max(0, window.innerHeight - rect.top);
