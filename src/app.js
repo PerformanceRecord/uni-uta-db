@@ -459,13 +459,6 @@ function headersToObject(headers) {
       if (topForm) {
         document.documentElement.style.setProperty('--dummy-top-card-height', '0px');
       }
-
-      const searchPanel = document.querySelector('.bottom-panel[aria-label="検索フォームカード"]');
-      if (!searchPanel) return;
-      const bottomHeight = Math.ceil(searchPanel.getBoundingClientRect().height);
-      if (bottomHeight > 0) {
-        document.documentElement.style.setProperty('--dummy-end-card-height', `${bottomHeight}px`);
-      }
     }
 
 
