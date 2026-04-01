@@ -332,9 +332,21 @@
       overflow: visible;
       --top-expanded-height: 170px;
       --top-collapsed-height: 0px;
-      --top-collapsed-padding-bottom: var(--space-2);
-      --top-collapsed-footprint: calc(var(--space-2) + var(--top-collapsed-height) + var(--top-collapsed-padding-bottom));
+      --top-summary-footprint: calc(var(--control-height) + (var(--space-2) * 2));
+      --top-collapsed-footprint: var(--top-summary-footprint);
       --top-reserved-height: var(--top-expanded-height);
+    }
+
+    .top-shell {
+      position: relative;
+    }
+
+    .top-overlay-host {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      margin-top: var(--space-2);
     }
 
     .top-switch-bar {
@@ -418,10 +430,6 @@
     }
 
     .top-collapsible {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: calc(100% + var(--space-2));
       max-height: 360px;
       opacity: 1;
       overflow: hidden;
@@ -1177,72 +1185,76 @@
   <div id="scrollBubbles" class="scroll-bubbles" aria-hidden="true"></div>
   <main class="container" id="songsPage">
     <section class="card top-form" id="topForm">
-      <div class="top-switch-bar">
-        <div class="desktop-switch" id="topDesktopSwitch" aria-label="上部カード切り替え">
-          <button id="topSwitchFilter" type="button" class="active" aria-pressed="true">絞り込み</button>
-          <button id="topSwitchMemo" type="button" aria-pressed="false">メモ帳</button>
-        </div>
-      </div>
-      <div class="page-indicator top-indicator" id="topPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
-      <div class="top-summary">
-        <div class="summary-box">
-          <span class="status-shell" id="statusShell" data-state="loading">
-            <span class="status-dot" aria-hidden="true"></span>
-            <span class="status" id="status"></span>
-          </span>
-          <div class="summary-actions">
-            <div class="summary-inline count-inline"><span id="selectedCount">0</span>/<span id="totalCount">0</span>曲</div>
-            <button id="collapseTopMenu" class="top-fold-btn" type="button" aria-label="絞り込みメニューを折りたたむ">折りたたみ</button>
-            <button id="expandTopMenu" class="top-expand-btn" type="button" aria-label="絞り込みメニューを展開">展開</button>
+      <div class="top-shell">
+        <div class="top-switch-bar">
+          <div class="desktop-switch" id="topDesktopSwitch" aria-label="上部カード切り替え">
+            <button id="topSwitchFilter" type="button" class="active" aria-pressed="true">絞り込み</button>
+            <button id="topSwitchMemo" type="button" aria-pressed="false">メモ帳</button>
           </div>
         </div>
-      </div>
-      <div class="top-swipe-wrap" id="topSwipeWrap">
-        <div class="top-swipe-track" id="topSwipeTrack">
-          <section class="top-panel" aria-label="絞り込みカード">
-            <div class="top-collapsible">
-              <div id="errorLogWrap" class="error-log-wrap" aria-live="polite">
-                <div class="error-log-head">
-                  <strong>エラー情報</strong>
-                  <button id="copyErrorLog" type="button">コピー</button>
-                </div>
-                <pre id="errorLog" class="error-log">エラー時に情報を表示します。</pre>
-              </div>
-
-              <div class="top-advanced">
-                <div class="checkbox-row" aria-label="絞り込み">
-                    <label><input type="checkbox" id="kindLive" checked>歌枠</label>
-                    <label><input type="checkbox" id="kindCover" checked>歌ってみた</label>
-                    <label><input type="checkbox" id="kindShort" checked>ショート</label>
-                </div>
-                <div class="sort-row" aria-label="表示切替">
-                  <label aria-label="並び替え項目">
-                    <select id="sortField" class="sort-compact" aria-label="並び替え項目">
-                      <option value="artist">アーティスト名</option>
-                      <option value="title">楽曲名</option>
-                      <option value="date" selected>投稿日</option>
-                    </select>
-                  </label>
-                  <label aria-label="並び順">
-                    <select id="sortOrder" class="sort-compact" aria-label="並び順">
-                      <option value="asc">昇順</option>
-                      <option value="desc" selected>降順</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
+        <div class="page-indicator top-indicator" id="topPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
+        <div class="top-summary">
+          <div class="summary-box">
+            <span class="status-shell" id="statusShell" data-state="loading">
+              <span class="status-dot" aria-hidden="true"></span>
+              <span class="status" id="status"></span>
+            </span>
+            <div class="summary-actions">
+              <div class="summary-inline count-inline"><span id="selectedCount">0</span>/<span id="totalCount">0</span>曲</div>
+              <button id="collapseTopMenu" class="top-fold-btn" type="button" aria-label="絞り込みメニューを折りたたむ">折りたたみ</button>
+              <button id="expandTopMenu" class="top-expand-btn" type="button" aria-label="絞り込みメニューを展開">展開</button>
             </div>
-          </section>
+          </div>
+        </div>
+        <div class="top-overlay-host">
+          <div class="top-swipe-wrap" id="topSwipeWrap">
+            <div class="top-swipe-track" id="topSwipeTrack">
+              <section class="top-panel" aria-label="絞り込みカード">
+                <div class="top-collapsible">
+                  <div id="errorLogWrap" class="error-log-wrap" aria-live="polite">
+                    <div class="error-log-head">
+                      <strong>エラー情報</strong>
+                      <button id="copyErrorLog" type="button">コピー</button>
+                    </div>
+                    <pre id="errorLog" class="error-log">エラー時に情報を表示します。</pre>
+                  </div>
 
-          <section class="top-panel" aria-label="メモカード">
-            <div class="memo-panel">
-              <textarea id="memoInput" aria-label="メモ帳" placeholder="メモを入力"></textarea>
-              <div class="memo-actions">
-                <button id="copyMemo" type="button">コピー</button>
-                <button id="pasteMemo" type="button">ペースト</button>
-              </div>
+                  <div class="top-advanced">
+                    <div class="checkbox-row" aria-label="絞り込み">
+                        <label><input type="checkbox" id="kindLive" checked>歌枠</label>
+                        <label><input type="checkbox" id="kindCover" checked>歌ってみた</label>
+                        <label><input type="checkbox" id="kindShort" checked>ショート</label>
+                    </div>
+                    <div class="sort-row" aria-label="表示切替">
+                      <label aria-label="並び替え項目">
+                        <select id="sortField" class="sort-compact" aria-label="並び替え項目">
+                          <option value="artist">アーティスト名</option>
+                          <option value="title">楽曲名</option>
+                          <option value="date" selected>投稿日</option>
+                        </select>
+                      </label>
+                      <label aria-label="並び順">
+                        <select id="sortOrder" class="sort-compact" aria-label="並び順">
+                          <option value="asc">昇順</option>
+                          <option value="desc" selected>降順</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="top-panel" aria-label="メモカード">
+                <div class="memo-panel">
+                  <textarea id="memoInput" aria-label="メモ帳" placeholder="メモを入力"></textarea>
+                  <div class="memo-actions">
+                    <button id="copyMemo" type="button">コピー</button>
+                    <button id="pasteMemo" type="button">ペースト</button>
+                  </div>
+                </div>
+              </section>
             </div>
-          </section>
+          </div>
         </div>
       </div>
     </section>
