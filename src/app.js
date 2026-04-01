@@ -481,12 +481,18 @@ function headersToObject(headers) {
     }
 
     function updateTopSpacerVisibility() {
-      if (!rows) return;
-      const topForm = byId('topForm');
-      const isFilterPanel = getTopSwipeCard() === 0;
-      const isExpanded = Boolean(topForm) && !topForm.classList.contains('collapsed');
-      const shouldShow = isMobileLayout() && isFilterPanel && isExpanded && rows.scrollTop <= 1;
-      rows.classList.toggle('show-top-spacer', shouldShow);
+      /*
+       * 段階的移行（第1段階）:
+       * レイアウト責務を CSS 側へ寄せるため、
+       * show-top-spacer の JS ON/OFF は一時的に無効化する。
+       *
+       * 第2段階で復帰予定:
+       * - 最上段スクロール位置
+       * - フィルターパネル表示状態
+       * - トップメニュー展開状態
+       * を条件に show-top-spacer を再制御する。
+       */
+      return;
     }
 
 
