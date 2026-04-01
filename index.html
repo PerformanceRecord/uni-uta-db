@@ -335,6 +335,12 @@
       --top-collapsed-height: 0px;
     }
 
+    .top-switch-bar {
+      display: none;
+      justify-content: flex-end;
+      margin-bottom: var(--space-1);
+    }
+
     .top-swipe-wrap {
       position: relative;
       overflow: hidden;
@@ -783,6 +789,10 @@
         display: inline-flex;
       }
 
+      .top-switch-bar {
+        display: flex;
+      }
+
       .page-indicator {
         display: none;
       }
@@ -1161,6 +1171,12 @@
   <div id="scrollBubbles" class="scroll-bubbles" aria-hidden="true"></div>
   <main class="container" id="songsPage">
     <section class="card top-form" id="topForm">
+      <div class="top-switch-bar">
+        <div class="desktop-switch" id="topDesktopSwitch" aria-label="上部カード切り替え">
+          <button id="topSwitchFilter" type="button" class="active" aria-pressed="true">絞り込み</button>
+          <button id="topSwitchMemo" type="button" aria-pressed="false">メモ帳</button>
+        </div>
+      </div>
       <div class="page-indicator top-indicator" id="topPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
       <div class="top-swipe-wrap" id="topSwipeWrap">
         <div class="top-swipe-track" id="topSwipeTrack">
@@ -1172,10 +1188,6 @@
                   <span class="status" id="status"></span>
                 </span>
                 <div class="summary-actions">
-                  <div class="desktop-switch" id="topDesktopSwitch" aria-label="上部カード切り替え">
-                    <button id="topSwitchFilter" type="button" class="active" aria-pressed="true">絞り込み</button>
-                    <button id="topSwitchMemo" type="button" aria-pressed="false">メモ帳</button>
-                  </div>
                   <div class="summary-inline count-inline"><span id="selectedCount">0</span>/<span id="totalCount">0</span>曲</div>
                   <button id="collapseTopMenu" class="top-fold-btn" type="button" aria-label="絞り込みメニューを折りたたむ">折りたたみ</button>
                   <button id="expandTopMenu" class="top-expand-btn" type="button" aria-label="絞り込みメニューを展開">展開</button>
