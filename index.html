@@ -409,6 +409,7 @@
       position: relative;
       width: 50%;
       min-width: 0;
+      min-height: 0;
     }
 
     .top-panel[aria-label="メモカード"] {
@@ -419,7 +420,7 @@
       border: 0;
       border-radius: 0;
       background: transparent;
-      padding: var(--space-2);
+      padding: var(--space-2) var(--space-3);
       min-height: 0;
       height: 100%;
       display: flex;
@@ -754,6 +755,7 @@
 
     @media (max-width: 860px) {
       body { padding: var(--space-2); }
+      body { background-size: 100% 100dvh, 100% 100dvh, 100% 100dvh; }
       .card :is(input, select) { font-size: 16px; }
       #memoInput { font-size: 16px; }
       .container {
@@ -768,10 +770,49 @@
       .bottom-form { width: 100%; }
       .card { padding: var(--space-2); }
       .top-advanced { grid-template-columns: 1fr; gap: var(--space-2); }
-      .sort-row { grid-template-columns: auto auto; }
-      .sort-row button { min-width: 96px; }
-      .sort-row select { min-width: 98px; }
-      .sort-row select.sort-compact { min-width: 102px; }
+      .top-drawer-frame {
+        background: color-mix(in srgb, var(--surface-2) 94%, white 6%);
+      }
+      .filter-body {
+        padding: var(--space-2) var(--space-3);
+      }
+      .checkbox-row {
+        gap: 6px var(--space-2);
+      }
+      .checkbox-row label {
+        font-size: 12px;
+        letter-spacing: -0.01em;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+      .sort-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        justify-content: stretch;
+      }
+      .sort-row label {
+        width: 100%;
+      }
+      .sort-row button,
+      .sort-row select,
+      .sort-row select.sort-compact {
+        width: 100%;
+        min-width: 0;
+      }
+      .sort-row select.sort-compact {
+        min-height: 34px;
+        padding: 6px var(--space-2);
+        font-size: 14px;
+        letter-spacing: -0.01em;
+      }
+      .memo-panel {
+        padding: var(--space-2) var(--space-3);
+        background: color-mix(in srgb, var(--surface-2) 96%, white 4%);
+      }
+      #memoInput {
+        padding: var(--space-2);
+        line-height: 1.45;
+      }
       .memo-actions { grid-template-columns: 1fr 1fr; }
       .ratio-8-2 { grid-template-columns: 1fr; }
       .bottom-static-controls .ratio-8-2 {
@@ -783,6 +824,12 @@
         padding-left: var(--space-2);
         padding-right: var(--space-2);
         white-space: nowrap;
+      }
+      .bottom-swipe-wrap {
+        background: color-mix(in srgb, var(--surface-2) 94%, white 6%);
+      }
+      .bottom-panel {
+        padding: var(--space-2) var(--space-3);
       }
       .search-inline { grid-template-columns: minmax(0, 1fr) auto; }
       .summary-box { font-size: 11px; }
@@ -810,6 +857,19 @@
       .song-cards.show-top-spacer {
         /* 段階的移行（第1段階）では実質未使用。第2段階での復帰用に定義を残す。 */
         padding-top: var(--dummy-top-card-height);
+      }
+    }
+
+    @media (max-width: 420px) {
+      .checkbox-row {
+        gap: 4px var(--space-2);
+      }
+      .checkbox-row label {
+        font-size: 11px;
+        letter-spacing: -0.02em;
+      }
+      .sort-row select.sort-compact {
+        font-size: 13px;
       }
     }
 
