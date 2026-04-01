@@ -332,6 +332,7 @@
       overflow: visible;
       --top-expanded-height: 170px;
       --top-collapsed-height: 0px;
+      --top-reserved-height: var(--top-expanded-height);
     }
 
     .top-switch-bar {
@@ -725,6 +726,7 @@
       .container {
         width: 100%;
         gap: var(--space-2);
+        height: calc(100dvh - (var(--space-2) * 2));
         min-height: calc(100dvh - (var(--space-2) * 2));
       }
       .card,
@@ -752,6 +754,9 @@
       }
       .search-inline { grid-template-columns: minmax(0, 1fr) auto; }
       .summary-box { font-size: 11px; }
+      .top-form {
+        min-height: var(--top-reserved-height);
+      }
       .middle-form {
         display: flex;
         min-height: 0;
