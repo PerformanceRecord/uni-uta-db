@@ -779,9 +779,15 @@
         flex: 1;
         height: 100%;
         max-height: none;
-        padding-top: 0;
+        /*
+         * 段階的移行（第1段階）:
+         * show-top-spacer クラス依存を外し、モバイルでは常時トップ余白を確保する。
+         * 第2段階で JS の show-top-spacer ON/OFF ロジック復帰時に再調整する。
+         */
+        padding-top: var(--dummy-top-card-height);
       }
       .song-cards.show-top-spacer {
+        /* 段階的移行（第1段階）では実質未使用。第2段階での復帰用に定義を残す。 */
         padding-top: var(--dummy-top-card-height);
       }
     }
