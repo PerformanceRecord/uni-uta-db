@@ -286,7 +286,6 @@ function headersToObject(headers) {
       const collapseButton = byId('collapseTopMenu');
       const expandButton = byId('expandTopMenu');
       const topSwitchFilter = byId('topSwitchFilter');
-      const topSwitchMemo = byId('topSwitchMemo');
 
       if (!wrap || !track) return;
       const topSwipe = setupSwipeTrack({
@@ -310,8 +309,6 @@ function headersToObject(headers) {
           updateTopSpacerVisibility();
           topSwitchFilter?.classList.toggle('active', index === 0);
           topSwitchFilter?.setAttribute('aria-pressed', String(index === 0));
-          topSwitchMemo?.classList.toggle('active', index === 1);
-          topSwitchMemo?.setAttribute('aria-pressed', String(index === 1));
         },
       });
       setTopSwipeCard = topSwipe.setCard;
@@ -333,7 +330,6 @@ function headersToObject(headers) {
         setTopMenuCollapsed(false);
       });
       topSwitchFilter?.addEventListener('click', () => setTopSwipeCard(0));
-      topSwitchMemo?.addEventListener('click', () => setTopSwipeCard(1));
 
       syncTopPanelSize();
       window.addEventListener('resize', syncTopPanelSize);
