@@ -771,10 +771,6 @@
       .top-form {
         min-height: var(--top-collapsed-footprint);
       }
-      .top-form:not(.memo-active) .top-swipe-wrap,
-      .top-form:not(.memo-active).collapsed .top-swipe-wrap {
-        height: var(--top-collapsed-height);
-      }
       .middle-form {
         display: flex;
         min-height: 0;
@@ -829,7 +825,7 @@
       }
 
       .top-form.collapsed .top-swipe-wrap,
-      .top-swipe-wrap {
+      .top-form:not(.collapsed) .top-swipe-wrap {
         height: var(--top-expanded-height);
       }
     }
