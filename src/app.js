@@ -915,6 +915,30 @@ function headersToObject(headers) {
       rerenderOrLoadSongs();
     }
 
+    function updateSortControlState() {
+      const sortByDate = byId('sortByDate');
+      const sortByTitle = byId('sortByTitle');
+      const sortByArtist = byId('sortByArtist');
+      const sortOrderToggle = byId('sortOrderToggle');
+      if (!sortByDate || !sortByTitle || !sortByArtist || !sortOrderToggle) return;
+
+      const pressedMap = {
+        date: sortByDate,
+        title: sortByTitle,
+        artist: sortByArtist,
+      };
+
+      Object.entries(pressedMap).forEach(([field, element]) => {
+        const isPressed = state.sortField === field;
+        element.setAttribute('aria-pressed', String(isPressed));
+      });
+
+      const isAsc = state.sortOrder === 'asc';
+      sortOrderToggle.setAttribute('aria-pressed', String(isAsc));
+      sortOrderToggle.textContent = isAsc ? '昇順' : '降順';
+      sortOrderToggle.setAttribute('aria-label', `並び順: ${isAsc ? '昇順' : '降順'}`);
+    }
+
     function bind() {
       if (!ENABLE_ERROR_LOG_UI) {
         errorLogWrap.hidden = true;
@@ -929,15 +953,31 @@ function headersToObject(headers) {
       byId('kindShort').addEventListener('change', () => toggleKind('short'));
       byId('kindLive').addEventListener('change', () => toggleKind('live'));
 
-      byId('sortField').addEventListener('change', (e) => {
-        state.sortField = e.target.value;
+      byId('sortByDate').addEventListener('click', () => {
+        state.sortField = 'date';
         state.sortMode = `${state.sortField}-${state.sortOrder}`;
+        updateSortControlState();
         rerenderOrLoadSongs();
       });
 
-      byId('sortOrder').addEventListener('change', (e) => {
-        state.sortOrder = e.target.value;
+      byId('sortByTitle').addEventListener('click', () => {
+        state.sortField = 'title';
         state.sortMode = `${state.sortField}-${state.sortOrder}`;
+        updateSortControlState();
+        rerenderOrLoadSongs();
+      });
+
+      byId('sortByArtist').addEventListener('click', () => {
+        state.sortField = 'artist';
+        state.sortMode = `${state.sortField}-${state.sortOrder}`;
+        updateSortControlState();
+        rerenderOrLoadSongs();
+      });
+
+      byId('sortOrderToggle').addEventListener('click', () => {
+        state.sortOrder = state.sortOrder === 'desc' ? 'asc' : 'desc';
+        state.sortMode = `${state.sortField}-${state.sortOrder}`;
+        updateSortControlState();
         rerenderOrLoadSongs();
       });
 
@@ -1044,11 +1084,10 @@ function headersToObject(headers) {
       updateMiddleCardsHeight();
       updateTopFormCollapseByScroll();
       updateTopSpacerVisibility();
+      updateSortControlState();
     }
 
 export function initializeApp() {
-    byId('sortField').value = state.sortField;
-    byId('sortOrder').value = state.sortOrder;
     state.sortMode = `${state.sortField}-${state.sortOrder}`;
     state.myDanmaku = loadMyDanmakuCache();
     if (!state.myDanmaku) triggerSwipeHint();

@@ -590,34 +590,51 @@
     }
 
     .sort-row {
-      display: grid;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
       gap: var(--space-2);
-      grid-template-columns: auto auto;
-      align-items: end;
-      justify-content: start;
-    }
-
-    .sort-row label {
       min-width: 0;
     }
 
-    .sort-row select,
-    .sort-row button {
-      width: fit-content;
-      min-width: 112px;
+    .sort-toggle-group {
+      display: inline-flex;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, var(--surface-2) 92%, white 8%);
+      overflow: hidden;
     }
 
-    .sort-row select.sort-compact {
+    .sort-toggle {
+      min-width: 76px;
       min-height: calc(var(--control-height) - 4px);
-      padding: calc(var(--space-2) - 2px) var(--space-2);
-      background: color-mix(in srgb, var(--surface-2) 93%, white 7%);
+      border: 0;
+      border-right: 1px solid color-mix(in srgb, var(--line) 80%, white 20%);
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 10px;
     }
 
-    .sort-row select.sort-compact:focus-visible {
-      outline: none;
-      box-shadow:
-        inset 0 0 0 2px var(--focus),
-        0 0 0 1px color-mix(in srgb, var(--focus) 58%, transparent);
+    .sort-toggle:last-child {
+      border-right: 0;
+    }
+
+    .sort-toggle[aria-pressed="true"] {
+      background: #1e90ff;
+      color: #fff;
+    }
+
+    .sort-order-toggle {
+      min-width: 86px;
+      min-height: calc(var(--control-height) - 4px);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 10px;
+      white-space: nowrap;
     }
 
     .top-fold-btn,
@@ -836,24 +853,21 @@
         white-space: nowrap;
       }
       .sort-row {
-        grid-template-columns: 1fr;
         gap: 6px;
-        justify-content: stretch;
       }
-      .sort-row label {
-        width: 100%;
+      .sort-toggle-group {
+        flex: 1;
       }
-      .sort-row button,
-      .sort-row select,
-      .sort-row select.sort-compact {
-        width: 100%;
+      .sort-toggle {
+        flex: 1;
         min-width: 0;
+        font-size: 11px;
+        padding: 0 4px;
       }
-      .sort-row select.sort-compact {
-        min-height: 34px;
-        padding: 6px var(--space-2);
-        font-size: 14px;
-        letter-spacing: -0.01em;
+      .sort-order-toggle {
+        min-width: 74px;
+        font-size: 11px;
+        padding: 0 6px;
       }
       .memo-panel {
         padding: var(--space-2) var(--space-3);
@@ -918,8 +932,8 @@
         font-size: 11px;
         letter-spacing: -0.02em;
       }
-      .sort-row select.sort-compact {
-        font-size: 13px;
+      .sort-toggle {
+        font-size: 10px;
       }
     }
 
@@ -1384,19 +1398,12 @@
                         <label><input type="checkbox" id="kindShort" checked>ショート</label>
                     </div>
                     <div class="sort-row" aria-label="表示切替">
-                      <label aria-label="並び替え項目">
-                        <select id="sortField" class="sort-compact" aria-label="並び替え項目">
-                          <option value="artist">アーティスト名</option>
-                          <option value="title">楽曲名</option>
-                          <option value="date" selected>投稿日</option>
-                        </select>
-                      </label>
-                      <label aria-label="並び順">
-                        <select id="sortOrder" class="sort-compact" aria-label="並び順">
-                          <option value="asc">昇順</option>
-                          <option value="desc" selected>降順</option>
-                        </select>
-                      </label>
+                      <div class="sort-toggle-group" role="group" aria-label="並び替え項目">
+                        <button id="sortByDate" class="sort-toggle" type="button" aria-pressed="true">投稿日順</button>
+                        <button id="sortByTitle" class="sort-toggle" type="button" aria-pressed="false">楽曲順</button>
+                        <button id="sortByArtist" class="sort-toggle" type="button" aria-pressed="false">歌手名順</button>
+                      </div>
+                      <button id="sortOrderToggle" class="sort-order-toggle" type="button" aria-pressed="false">降順</button>
                     </div>
                   </div>
                 </div>
