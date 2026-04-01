@@ -44,6 +44,10 @@
       --layout-side-padding: var(--space-4);
       --pc-fluid-width-enabled: 1; /* 1: PCでA案(フル幅寄せ) / 0: 従来の1080px上限 */
       --pc-content-max-width: 900px;
+      --fixed-form-width: min(
+        calc(100vw - (var(--layout-side-padding) * 2)),
+        var(--pc-content-max-width)
+      );
     }
 
     * { box-sizing: border-box; }
@@ -303,10 +307,7 @@
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
-      width: min(
-        calc(100vw - (var(--layout-side-padding) * 2)),
-        900px
-      );
+      width: var(--fixed-form-width);
       max-width: calc(100vw - (var(--layout-side-padding) * 2));
     }
 
