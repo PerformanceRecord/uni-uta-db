@@ -944,6 +944,24 @@
 
       .top-switch-bar {
         display: flex;
+        grid-column: 1;
+        justify-content: flex-start;
+        margin: 0;
+        align-self: start;
+      }
+
+      .top-shell {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        column-gap: var(--space-2);
+        align-items: start;
+      }
+
+      .top-overlay-host {
+        position: static;
+        inset: auto;
+        margin-top: 0;
+        grid-column: 2;
       }
 
       .page-indicator {
@@ -957,6 +975,10 @@
 
       .top-bg-collapsed {
         display: none;
+      }
+
+      .top-drawer-frame {
+        height: var(--top-expanded-height);
       }
     }
 
