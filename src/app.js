@@ -212,12 +212,13 @@ function headersToObject(headers) {
     }
 
 
-    function getCollapsedTopHeight(topForm, filterPanel) {
-      if (!topForm || !filterPanel) return 0;
+    function getCollapsedTopHeight(topForm) {
+      if (!topForm) return 0;
       const wasCollapsed = topForm.classList.contains('collapsed');
       topForm.classList.add('collapsed');
-      const statusSummary = filterPanel.querySelector('.top-summary .summary-box');
-      const collapsedHeightBase = Math.ceil((statusSummary || filterPanel).getBoundingClientRect().height);
+      const statusSummary = topForm.querySelector('.top-summary .summary-box');
+      const fallbackSummary = topForm.querySelector('.top-summary');
+      const collapsedHeightBase = Math.ceil((statusSummary || fallbackSummary || topForm).getBoundingClientRect().height);
       const collapsedHeight = collapsedHeightBase + 2;
       if (!wasCollapsed) {
         topForm.classList.remove('collapsed');
@@ -258,7 +259,7 @@ function headersToObject(headers) {
       topForm.classList.remove('collapsed');
       const expandedHeight = Math.ceil(filterPanel.getBoundingClientRect().height);
 
-      const collapsedHeight = getCollapsedTopHeight(topForm, filterPanel);
+      const collapsedHeight = getCollapsedTopHeight(topForm);
 
       topForm.classList.toggle('collapsed', hasCollapsed);
 
