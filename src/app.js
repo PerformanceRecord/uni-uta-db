@@ -12,7 +12,6 @@ const MY_DANMAKU_CACHE_MS = 15 * 60 * 1000;
 const SWIPE_HINT_INTERVAL_MS = 3 * 60 * 1000;
 const MAX_ERROR_BODY_CHARS = 4000;
 const ENABLE_ERROR_LOG_UI = true;
-const MOBILE_BREAKPOINT_PX = 860;
 
 function songsCacheKey() {
   return `${CACHE_PREFIX}:${DATA_CACHE_KEY}`;
@@ -102,7 +101,6 @@ function headersToObject(headers) {
       panelWidthPercent = 50,
       onCardChange = null,
       allowInteractiveStart = false,
-      enablePointerSwipe = true,
     }) {
       let current = 0;
       let dragging = false;
@@ -174,8 +172,6 @@ function headersToObject(headers) {
       };
 
       track.addEventListener('pointerdown', (evt) => {
-        const canSwipe = typeof enablePointerSwipe === 'function' ? enablePointerSwipe() : enablePointerSwipe;
-        if (!canSwipe) return;
         if (evt.pointerType === 'mouse' && evt.button !== 0) return;
         const interactiveTarget = evt.target?.closest?.('button, input, select, textarea, label, a');
         const isMousePointer = evt.pointerType === 'mouse';
@@ -233,13 +229,6 @@ function headersToObject(headers) {
     }
 
     function setTopMenuCollapsed(nextCollapsed) {
-      if (!isMobileLayout()) {
-        topMenuCollapsed = false;
-        applyTopFormCollapsedState();
-        syncTopPanelSize();
-        updateDummyCardsHeight();
-        return;
-      }
       topMenuCollapsed = Boolean(nextCollapsed);
       applyTopFormCollapsedState();
       syncTopPanelSize();
@@ -281,8 +270,6 @@ function headersToObject(headers) {
       const topPageIndicator = byId('topPageIndicator');
       const collapseButton = byId('collapseTopMenu');
       const expandButton = byId('expandTopMenu');
-      const topSwitchFilter = byId('topSwitchFilter');
-      const topSwitchMemo = byId('topSwitchMemo');
 
       if (!wrap || !track) return;
       const topSwipe = setupSwipeTrack({
@@ -290,7 +277,6 @@ function headersToObject(headers) {
         track,
         panelWidthPercent: 50,
         allowInteractiveStart: true,
-        enablePointerSwipe: () => isMobileLayout(),
         onCardChange: (index) => {
           topSwipeCardIndex = index;
           updatePageIndicator(topPageIndicator, index);
@@ -298,15 +284,11 @@ function headersToObject(headers) {
           topForm?.classList.toggle('memo-active', isMemo);
           if (isMemo) {
             setTopMenuCollapsed(false);
-          } else {
-            applyTopFormCollapsedState();
-            syncTopPanelSize();
-            updateDummyCardsHeight();
+            return;
           }
-          topSwitchFilter?.classList.toggle('active', index === 0);
-          topSwitchFilter?.setAttribute('aria-pressed', String(index === 0));
-          topSwitchMemo?.classList.toggle('active', index === 1);
-          topSwitchMemo?.setAttribute('aria-pressed', String(index === 1));
+          applyTopFormCollapsedState();
+          syncTopPanelSize();
+          updateDummyCardsHeight();
         },
       });
       setTopSwipeCard = topSwipe.setCard;
@@ -327,8 +309,6 @@ function headersToObject(headers) {
         if (!topForm) return;
         setTopMenuCollapsed(false);
       });
-      topSwitchFilter?.addEventListener('click', () => setTopSwipeCard(0));
-      topSwitchMemo?.addEventListener('click', () => setTopSwipeCard(1));
 
       syncTopPanelSize();
       window.addEventListener('resize', syncTopPanelSize);
@@ -338,17 +318,11 @@ function headersToObject(headers) {
       const wrap = byId('bottomSwipeWrap');
       const track = byId('bottomSwipeTrack');
       const bottomPageIndicator = byId('bottomPageIndicator');
-      const bottomSwitchSearch = byId('bottomSwitchSearch');
-      const bottomSwitchMyDanmaku = byId('bottomSwitchMyDanmaku');
       const stopHint = () => {
         track.classList.remove('hinting');
       };
 
       const startHint = () => {
-        if (!isMobileLayout()) {
-          stopHint();
-          return;
-        }
         track.classList.remove('hinting');
         void track.offsetWidth;
         track.classList.add('hinting');
@@ -362,13 +336,8 @@ function headersToObject(headers) {
         track,
         panelWidthPercent: 50,
         allowInteractiveStart: true,
-        enablePointerSwipe: () => isMobileLayout(),
         onCardChange: (index) => {
           updatePageIndicator(bottomPageIndicator, index);
-          bottomSwitchSearch?.classList.toggle('active', index === 0);
-          bottomSwitchSearch?.setAttribute('aria-pressed', String(index === 0));
-          bottomSwitchMyDanmaku?.classList.toggle('active', index === 1);
-          bottomSwitchMyDanmaku?.setAttribute('aria-pressed', String(index === 1));
         },
       });
       const setCard = bottomSwipe.setCard;
@@ -386,14 +355,11 @@ function headersToObject(headers) {
       byId('saveMyDanmaku').addEventListener('click', () => {
         setCard(0);
       });
-      bottomSwitchSearch?.addEventListener('click', () => setCard(0));
-      bottomSwitchMyDanmaku?.addEventListener('click', () => setCard(1));
 
       setSwipeCard = setCard;
       triggerSwipeHint = startHint;
 
       startHint();
-      window.addEventListener('resize', startHint);
     }
 
 
@@ -457,12 +423,33 @@ function headersToObject(headers) {
     function updateDummyCardsHeight() {
       const topForm = byId('topForm');
       if (topForm) {
-        document.documentElement.style.setProperty('--dummy-top-card-height', '0px');
+        const rootStyle = getComputedStyle(document.documentElement);
+        const fixedTopDummyHeight = rootStyle.getPropertyValue('--dummy-top-card-height-fixed').trim();
+        if (fixedTopDummyHeight && fixedTopDummyHeight !== 'auto') {
+          document.documentElement.style.setProperty('--dummy-top-card-height', fixedTopDummyHeight);
+        } else {
+          const isCollapsed = topForm.classList.contains('collapsed');
+          const topVarName = isCollapsed
+            ? '--top-collapsed-height'
+            : '--top-expanded-height';
+          const topCssHeight = getComputedStyle(topForm).getPropertyValue(topVarName).trim();
+          const extraExpanded = rootStyle.getPropertyValue('--dummy-top-card-extra-expanded').trim() || '3px';
+          const extraCollapsed = rootStyle.getPropertyValue('--dummy-top-card-extra-collapsed').trim() || '7px';
+          const extraTopDummy = isCollapsed ? extraCollapsed : extraExpanded;
+          if (topCssHeight) {
+            document.documentElement.style.setProperty('--dummy-top-card-height', `calc(${topCssHeight} + ${extraTopDummy})`);
+          } else {
+            const topHeight = Math.ceil(topForm.getBoundingClientRect().height);
+            if (topHeight > 0) {
+              document.documentElement.style.setProperty('--dummy-top-card-height', `calc(${topHeight}px + ${extraTopDummy})`);
+            }
+          }
+        }
       }
 
       const searchPanel = document.querySelector('.bottom-panel[aria-label="検索フォームカード"]');
       if (!searchPanel) return;
-      const bottomHeight = Math.ceil(searchPanel.getBoundingClientRect().height);
+      const bottomHeight = Math.ceil(searchPanel.getBoundingClientRect().height * 2);
       if (bottomHeight > 0) {
         document.documentElement.style.setProperty('--dummy-end-card-height', `${bottomHeight}px`);
       }
@@ -646,7 +633,7 @@ function headersToObject(headers) {
     }
 
     function isMobileLayout() {
-      return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX}px)`).matches;
+      return window.matchMedia('(max-width: 768px)').matches;
     }
 
     function collapseExpandedCards() {
@@ -962,7 +949,31 @@ function headersToObject(headers) {
       };
 
       const updateScrollTopOffset = () => {
-        document.documentElement.style.setProperty('--scroll-top-offset', '0px');
+        const container = byId('songsPage');
+        const topForm = byId('topForm');
+        const middleForm = document.querySelector('.middle-form');
+        const bottomForm = document.querySelector('.bottom-form');
+        if (!bottomForm || !container) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const sharedLeft = `${Math.round(containerRect.left)}px`;
+        const sharedWidth = `${Math.round(containerRect.width)}px`;
+
+        if (topForm) {
+          topForm.style.left = sharedLeft;
+          topForm.style.width = sharedWidth;
+        }
+        if (middleForm) {
+          middleForm.style.left = sharedLeft;
+          middleForm.style.width = sharedWidth;
+        }
+        bottomForm.style.left = sharedLeft;
+        bottomForm.style.width = sharedWidth;
+
+        const rect = bottomForm.getBoundingClientRect();
+        const overlap = Math.max(0, window.innerHeight - rect.top);
+        const offset = overlap > 0 ? overlap + 8 : 0;
+        document.documentElement.style.setProperty('--scroll-top-offset', `${offset}px`);
         updateMiddleCardsHeight();
         updateDummyCardsHeight();
         syncTopPanelSize();
@@ -1007,7 +1018,6 @@ function headersToObject(headers) {
       media.addEventListener('change', () => {
         collapseExpandedCards();
         if (!isMobileLayout()) {
-          setTopMenuCollapsed(false);
           rows.querySelectorAll('.song-card').forEach((card) => card.classList.add('expanded'));
         }
         updateScrollTopOffset();
