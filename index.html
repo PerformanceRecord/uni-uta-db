@@ -1184,23 +1184,22 @@
         </div>
       </div>
       <div class="page-indicator top-indicator" id="topPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
+      <div class="top-summary">
+        <div class="summary-box">
+          <span class="status-shell" id="statusShell" data-state="loading">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status" id="status"></span>
+          </span>
+          <div class="summary-actions">
+            <div class="summary-inline count-inline"><span id="selectedCount">0</span>/<span id="totalCount">0</span>曲</div>
+            <button id="collapseTopMenu" class="top-fold-btn" type="button" aria-label="絞り込みメニューを折りたたむ">折りたたみ</button>
+            <button id="expandTopMenu" class="top-expand-btn" type="button" aria-label="絞り込みメニューを展開">展開</button>
+          </div>
+        </div>
+      </div>
       <div class="top-swipe-wrap" id="topSwipeWrap">
         <div class="top-swipe-track" id="topSwipeTrack">
           <section class="top-panel" aria-label="絞り込みカード">
-            <div class="top-summary">
-              <div class="summary-box">
-                <span class="status-shell" id="statusShell" data-state="loading">
-                  <span class="status-dot" aria-hidden="true"></span>
-                  <span class="status" id="status"></span>
-                </span>
-                <div class="summary-actions">
-                  <div class="summary-inline count-inline"><span id="selectedCount">0</span>/<span id="totalCount">0</span>曲</div>
-                  <button id="collapseTopMenu" class="top-fold-btn" type="button" aria-label="絞り込みメニューを折りたたむ">折りたたみ</button>
-                  <button id="expandTopMenu" class="top-expand-btn" type="button" aria-label="絞り込みメニューを展開">展開</button>
-                </div>
-              </div>
-            </div>
-
             <div class="top-collapsible">
               <div id="errorLogWrap" class="error-log-wrap" aria-live="polite">
                 <div class="error-log-head">
