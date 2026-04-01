@@ -213,3 +213,20 @@ bash scripts/verify_r2_upload_and_read.sh
 - フロント: `index.html` からR2公開URLの `songs.json` を直接取得
 
 フロントは `songs.json` が「配列形式」「{ items: [] } 形式」の両方を受け取れます。
+
+---
+
+## 自動テスト
+
+このリポジトリは `vitest` によるユニットテストを利用できます。
+
+### ローカル実行
+
+```bash
+npm ci
+npm test
+```
+
+### CI実行
+
+- `.github/workflows/test.yml` で `push` / `pull_request` 時に自動実行されます。
