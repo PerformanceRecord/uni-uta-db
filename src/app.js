@@ -216,8 +216,8 @@ function headersToObject(headers) {
       if (!topForm) return 0;
       const wasCollapsed = topForm.classList.contains('collapsed');
       topForm.classList.add('collapsed');
-      const statusSummary = topForm.querySelector('.top-summary .summary-box');
-      const fallbackSummary = topForm.querySelector('.top-summary');
+      const statusSummary = topForm.querySelector('.filter-header .summary-box');
+      const fallbackSummary = topForm.querySelector('.filter-header');
       const collapsedHeightBase = Math.ceil((statusSummary || fallbackSummary || topForm).getBoundingClientRect().height);
       const collapsedHeight = collapsedHeightBase + 2;
       if (!wasCollapsed) {
