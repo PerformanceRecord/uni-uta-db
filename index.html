@@ -331,6 +331,9 @@
       padding-top: var(--space-2);
       padding-bottom: var(--space-2);
       overflow: visible;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
       --top-collapsed-height: 0px;
       --top-summary-footprint: calc(var(--control-height) + (var(--space-2) * 2) + 2px);
       --top-collapsed-footprint: var(--top-summary-footprint);
@@ -359,15 +362,46 @@
 
     .top-drawer-frame {
       position: relative;
-      overflow: hidden;
+      overflow: visible;
       width: 100%;
       min-height: 0;
       height: var(--top-expanded-height);
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .top-bg-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .top-bg-box {
+      position: absolute;
+      left: 0;
+      right: 0;
       border: 1px solid var(--line);
       border-radius: var(--radius-md);
       background: color-mix(in srgb, var(--surface-2) 96%, white 4%);
       box-shadow: 0 8px 18px rgb(15 23 42 / 16%);
-      transition: height 0.25s ease;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.22s ease, visibility 0.22s step-end;
+    }
+
+    .top-bg-expanded {
+      top: 0;
+      height: var(--top-expanded-height);
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .top-bg-collapsed {
+      top: 0;
+      height: var(--top-collapsed-height);
     }
 
     .top-swipe-wrap {
@@ -376,15 +410,22 @@
       width: 100%;
       min-height: 0;
       height: 100%;
+      z-index: 1;
       border: 0;
       border-radius: 0;
       background: transparent;
       box-shadow: none;
     }
 
-    .top-form.collapsed .top-drawer-frame {
-      height: var(--top-collapsed-height);
-      overflow: hidden;
+    .top-form.collapsed .top-bg-expanded {
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.18s ease, visibility 0.18s step-start;
+    }
+
+    .top-form.collapsed .top-bg-collapsed {
+      opacity: 1;
+      visibility: visible;
     }
 
     .top-form.collapsed {
@@ -771,6 +812,9 @@
       .card { padding: var(--space-2); }
       .top-advanced { grid-template-columns: 1fr; gap: var(--space-2); }
       .top-drawer-frame {
+        background: transparent;
+      }
+      .top-bg-box {
         background: color-mix(in srgb, var(--surface-2) 94%, white 6%);
       }
       .filter-body {
@@ -911,9 +955,8 @@
         display: none !important;
       }
 
-      .top-form.collapsed .top-drawer-frame,
-      .top-form:not(.collapsed) .top-drawer-frame {
-        height: var(--top-expanded-height);
+      .top-bg-collapsed {
+        display: none;
       }
     }
 
@@ -1278,6 +1321,10 @@
         <div class="page-indicator top-indicator" id="topPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
         <div class="top-overlay-host">
           <div class="top-drawer-frame">
+            <div class="top-bg-layer" aria-hidden="true">
+              <div class="top-bg-box top-bg-expanded"></div>
+              <div class="top-bg-box top-bg-collapsed"></div>
+            </div>
             <div class="top-swipe-wrap" id="topSwipeWrap">
               <div class="top-swipe-track" id="topSwipeTrack">
                 <section class="top-panel" aria-label="絞り込みカード">
