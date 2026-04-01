@@ -748,6 +748,10 @@
     }
 
     @media (min-width: 861px) {
+      :root {
+        --pc-content-max-width: calc(100vw - (var(--layout-side-padding) * 2));
+      }
+
       .top-fold-btn,
       .top-expand-btn {
         display: none !important;
@@ -766,13 +770,6 @@
         height: var(--top-expanded-height);
       }
 
-      .song-card {
-        max-width: min(
-          calc(100vw - (var(--layout-side-padding) * 2)),
-          var(--pc-content-max-width)
-        );
-        margin-inline: auto;
-      }
     }
 
     .song-cards {
