@@ -423,33 +423,12 @@ function headersToObject(headers) {
     function updateDummyCardsHeight() {
       const topForm = byId('topForm');
       if (topForm) {
-        const rootStyle = getComputedStyle(document.documentElement);
-        const fixedTopDummyHeight = rootStyle.getPropertyValue('--dummy-top-card-height-fixed').trim();
-        if (fixedTopDummyHeight && fixedTopDummyHeight !== 'auto') {
-          document.documentElement.style.setProperty('--dummy-top-card-height', fixedTopDummyHeight);
-        } else {
-          const isCollapsed = topForm.classList.contains('collapsed');
-          const topVarName = isCollapsed
-            ? '--top-collapsed-height'
-            : '--top-expanded-height';
-          const topCssHeight = getComputedStyle(topForm).getPropertyValue(topVarName).trim();
-          const extraExpanded = rootStyle.getPropertyValue('--dummy-top-card-extra-expanded').trim() || '3px';
-          const extraCollapsed = rootStyle.getPropertyValue('--dummy-top-card-extra-collapsed').trim() || '7px';
-          const extraTopDummy = isCollapsed ? extraCollapsed : extraExpanded;
-          if (topCssHeight) {
-            document.documentElement.style.setProperty('--dummy-top-card-height', `calc(${topCssHeight} + ${extraTopDummy})`);
-          } else {
-            const topHeight = Math.ceil(topForm.getBoundingClientRect().height);
-            if (topHeight > 0) {
-              document.documentElement.style.setProperty('--dummy-top-card-height', `calc(${topHeight}px + ${extraTopDummy})`);
-            }
-          }
-        }
+        document.documentElement.style.setProperty('--dummy-top-card-height', '0px');
       }
 
       const searchPanel = document.querySelector('.bottom-panel[aria-label="検索フォームカード"]');
       if (!searchPanel) return;
-      const bottomHeight = Math.ceil(searchPanel.getBoundingClientRect().height * 2);
+      const bottomHeight = Math.ceil(searchPanel.getBoundingClientRect().height);
       if (bottomHeight > 0) {
         document.documentElement.style.setProperty('--dummy-end-card-height', `${bottomHeight}px`);
       }
@@ -949,13 +928,7 @@ function headersToObject(headers) {
       };
 
       const updateScrollTopOffset = () => {
-        const bottomForm = document.querySelector('.bottom-form');
-        if (!bottomForm) return;
-
-        const rect = bottomForm.getBoundingClientRect();
-        const overlap = Math.max(0, window.innerHeight - rect.top);
-        const offset = overlap > 0 ? overlap + 8 : 0;
-        document.documentElement.style.setProperty('--scroll-top-offset', `${offset}px`);
+        document.documentElement.style.setProperty('--scroll-top-offset', '0px');
         updateMiddleCardsHeight();
         updateDummyCardsHeight();
         syncTopPanelSize();
