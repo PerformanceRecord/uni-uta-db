@@ -339,6 +339,7 @@
 
     .top-shell {
       position: relative;
+      z-index: 0;
     }
 
     .top-overlay-host {
@@ -347,6 +348,7 @@
       right: 0;
       top: 100%;
       margin-top: var(--space-2);
+      z-index: 3;
     }
 
     .top-switch-bar {
@@ -361,6 +363,10 @@
       width: 100%;
       min-height: 0;
       height: var(--top-expanded-height);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, var(--surface-2) 96%, white 4%);
+      box-shadow: 0 8px 18px rgb(15 23 42 / 16%);
       transition: height 0.25s ease;
     }
 
@@ -455,7 +461,7 @@
     .top-summary {
       position: sticky;
       top: 0;
-      z-index: 1;
+      z-index: 2;
     }
 
     .summary-actions {
