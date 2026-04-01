@@ -329,7 +329,7 @@
     .top-form {
       z-index: 70;
       padding-top: var(--space-2);
-      padding-bottom: var(--space-2);
+      padding-bottom: 0;
       overflow: visible;
       background: transparent;
       border: 0;
@@ -378,23 +378,11 @@
     }
 
     .top-bg-layer {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
+      display: none;
     }
 
     .top-bg-box {
-      position: absolute;
-      left: 0;
-      right: 0;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-md);
-      background: color-mix(in srgb, var(--surface-2) 96%, white 4%);
-      box-shadow: 0 8px 18px rgb(15 23 42 / 16%);
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.22s ease, visibility 0.22s step-end;
+      display: none;
     }
 
     .top-bg-expanded {
@@ -414,28 +402,23 @@
       overflow: hidden;
       width: 100%;
       min-height: 0;
-      height: 100%;
+      height: var(--top-expanded-height);
       z-index: 1;
       border: 0;
       border-radius: 0;
       background: transparent;
       box-shadow: none;
+      transition: height 0.25s ease;
     }
 
-    .top-form.collapsed .top-bg-expanded {
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.18s ease, visibility 0.18s step-start;
-    }
-
-    .top-form.collapsed .top-bg-collapsed {
-      opacity: 1;
-      visibility: visible;
+    .top-form.collapsed .top-swipe-wrap {
+      height: var(--top-collapsed-height);
     }
 
     .top-form.collapsed {
       padding-top: var(--space-2);
-      min-height: var(--top-collapsed-footprint);
+      padding-bottom: var(--space-2);
+      min-height: 0;
     }
 
     .top-swipe-track {
@@ -463,10 +446,10 @@
     }
 
     .memo-panel {
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      padding: var(--space-2);
       min-height: 0;
       height: 100%;
       display: flex;
@@ -492,27 +475,28 @@
 
     .filter-header {
       margin-bottom: 0;
-      padding: var(--space-2) var(--space-3);
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
 
     .filter-body {
+      margin-top: var(--space-2);
       max-height: 360px;
       opacity: 1;
       overflow: hidden;
       z-index: 8;
-      border-top: 1px solid var(--line);
-      padding: var(--space-2);
-      transition: opacity 0.2s ease, transform 0.2s ease;
+      transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.2s ease;
     }
 
     .summary-box {
-      border: 0;
-      border-radius: 0;
-      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
       min-height: var(--control-height);
       display: flex;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: space-between;
       flex-wrap: nowrap;
       gap: 4px 10px;
       padding: var(--space-2) var(--space-3);
@@ -662,8 +646,9 @@
     }
 
     .top-form.collapsed .filter-body {
+      max-height: 0;
       opacity: 0;
-      transform: translateY(-4px);
+      margin-top: 0;
       pointer-events: none;
       visibility: hidden;
     }
