@@ -151,7 +151,7 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      margin-left: 6px;
+      margin-left: 0;
       padding: 3px 10px 3px 8px;
       border-radius: 999px;
       border: 1px solid color-mix(in srgb, var(--line) 85%, white 15%);
@@ -364,7 +364,7 @@
       min-height: 0;
       height: var(--top-expanded-height);
       border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-md);
       background: color-mix(in srgb, var(--surface-2) 96%, white 4%);
       box-shadow: 0 8px 18px rgb(15 23 42 / 16%);
       transition: height 0.25s ease;
@@ -384,11 +384,7 @@
 
     .top-form.collapsed .top-drawer-frame {
       height: var(--top-collapsed-height);
-      border-width: 0;
-      box-shadow: none;
-      background: transparent;
       overflow: hidden;
-      pointer-events: none;
     }
 
     .top-form.collapsed {
@@ -469,7 +465,7 @@
       min-height: var(--control-height);
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       flex-wrap: nowrap;
       gap: 4px 10px;
       padding: var(--space-2) var(--space-3);
@@ -608,7 +604,7 @@
     }
 
     .top-form.collapsed .top-overlay-host {
-      pointer-events: none;
+      pointer-events: auto;
     }
 
     .top-form.collapsed .top-expand-btn {
