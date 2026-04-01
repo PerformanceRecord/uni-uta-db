@@ -12,6 +12,7 @@ const MY_DANMAKU_CACHE_MS = 15 * 60 * 1000;
 const SWIPE_HINT_INTERVAL_MS = 3 * 60 * 1000;
 const MAX_ERROR_BODY_CHARS = 4000;
 const ENABLE_ERROR_LOG_UI = true;
+const MOBILE_BREAKPOINT_PX = 860;
 
 function songsCacheKey() {
   return `${CACHE_PREFIX}:${DATA_CACHE_KEY}`;
@@ -344,6 +345,10 @@ function headersToObject(headers) {
       };
 
       const startHint = () => {
+        if (!isMobileLayout()) {
+          stopHint();
+          return;
+        }
         track.classList.remove('hinting');
         void track.offsetWidth;
         track.classList.add('hinting');
@@ -388,6 +393,7 @@ function headersToObject(headers) {
       triggerSwipeHint = startHint;
 
       startHint();
+      window.addEventListener('resize', startHint);
     }
 
 
@@ -640,7 +646,7 @@ function headersToObject(headers) {
     }
 
     function isMobileLayout() {
-      return window.matchMedia('(max-width: 768px)').matches;
+      return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX}px)`).matches;
     }
 
     function collapseExpandedCards() {
