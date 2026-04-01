@@ -262,6 +262,7 @@ function headersToObject(headers) {
 
       if (expandedHeight > 0) {
         topForm.style.setProperty('--top-expanded-height', `${expandedHeight}px`);
+        topForm.style.setProperty('--top-reserved-height', `${expandedHeight}px`);
       }
       if (collapsedHeight > 0) {
         topForm.style.setProperty('--top-collapsed-height', `${collapsedHeight}px`);
@@ -443,10 +444,14 @@ function headersToObject(headers) {
       if (!rows) return;
 
       const middleForm = document.querySelector('.middle-form');
-      if (!middleForm) return;
+      const bottomForm = document.querySelector('.bottom-form');
+      if (!middleForm || !bottomForm) return;
 
       const middleRect = middleForm.getBoundingClientRect();
-      const available = Math.floor(middleRect.height - 4);
+      const bottomRect = bottomForm.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const bottomTop = Math.min(bottomRect.top, viewportHeight);
+      const available = Math.floor(bottomTop - middleRect.top - 4);
       if (available > 120) {
         rows.style.maxHeight = `${available}px`;
       } else {
@@ -977,6 +982,8 @@ function headersToObject(headers) {
       });
 
       window.addEventListener('resize', updateScrollTopOffset);
+      window.visualViewport?.addEventListener('resize', updateScrollTopOffset);
+      window.visualViewport?.addEventListener('scroll', updateScrollTopOffset);
 
       rows.addEventListener('scroll', () => {
         const cardSample = rows.querySelector('.song-card');
