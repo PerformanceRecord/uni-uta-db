@@ -36,12 +36,14 @@
       --bg-scroll-darkness: 0;
       --bg-scroll-brightness: 0;
       --scroll-top-offset: 0px;
-      --top-expanded-height: 170px;
-      --dummy-top-card-height: var(--top-expanded-height);
+      --dummy-end-card-height: 72px;
+      --dummy-top-card-height: 80px;
       --dummy-top-card-height-fixed: auto;
       --dummy-top-card-extra-expanded: 3px;
       --dummy-top-card-extra-collapsed: 7px;
-      --pc-content-max-width: 900px;
+      --layout-side-padding: var(--space-4);
+      --pc-fluid-width-enabled: 1; /* 1: PCでA案(フル幅寄せ) / 0: 従来の1080px上限 */
+      --pc-content-max-width: 860px;
     }
 
     * { box-sizing: border-box; }
@@ -128,9 +130,6 @@
     .container {
       position: relative;
       z-index: 1;
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-2);
       width: min(100%, var(--pc-content-max-width));
       margin: 0 auto;
       min-height: 100%;
@@ -151,11 +150,11 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      margin-left: 0;
+      margin-left: 6px;
       padding: 3px 10px 3px 8px;
       border-radius: 999px;
       border: 1px solid color-mix(in srgb, var(--line) 85%, white 15%);
-      background: color-mix(in srgb, var(--surface-2) 92%, white 8%);
+      background: color-mix(in srgb, var(--surface-2) 88%, black 12%);
       overflow: hidden;
       transition: border-color 0.25s ease, background-color 0.25s ease, opacity 0.25s ease;
       opacity: 0.7;
@@ -189,7 +188,7 @@
 
     .status-shell[data-state="ok"] {
       border-color: color-mix(in srgb, var(--line) 88%, #10b981 12%);
-      background: color-mix(in srgb, var(--surface-2) 90%, #10b981 10%);
+      background: color-mix(in srgb, var(--surface-2) 94%, #10b981 6%);
       opacity: 0.62;
     }
 
@@ -298,103 +297,18 @@
       outline-offset: 1px;
     }
 
-    .top-form,
-    .middle-form,
-    .bottom-form {
-      position: relative;
-      width: 100%;
-      max-width: 100%;
-    }
-
-    .desktop-switch {
-      display: none;
-      gap: var(--space-1);
-      align-items: center;
-    }
-
-    .desktop-switch button {
-      min-height: 28px;
-      padding: 4px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      background: color-mix(in srgb, var(--surface-2) 90%, white 10%);
-    }
-
-    .desktop-switch button.active {
-      background: #1e90ff;
-      color: #ffffff;
-      border-color: #0b5db7;
-    }
-
     .top-form {
+      position: fixed;
+      left: 0;
+      transform: none;
+      width: min(calc(100vw - (var(--layout-side-padding) * 2)), var(--pc-content-max-width));
+      top: calc(var(--space-4) + env(safe-area-inset-top));
       z-index: 70;
       padding-top: var(--space-2);
       padding-bottom: 0;
       overflow: visible;
-      background: transparent;
-      border: 0;
-      box-shadow: none;
+      --top-expanded-height: 170px;
       --top-collapsed-height: 0px;
-      --top-summary-footprint: calc(var(--control-height) + (var(--space-2) * 2) + 2px);
-      --top-collapsed-footprint: var(--top-summary-footprint);
-      --top-reserved-height: var(--top-expanded-height);
-    }
-
-    .top-shell {
-      position: relative;
-      z-index: 0;
-    }
-
-    .top-overlay-host {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 100%;
-      margin-top: var(--space-2);
-      z-index: 3;
-    }
-
-    .top-switch-bar {
-      display: none;
-      justify-content: flex-end;
-      margin-bottom: var(--space-1);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-md);
-      background: color-mix(in srgb, var(--surface-2) 96%, white 4%);
-      box-shadow: 0 8px 18px rgb(15 23 42 / 16%);
-      padding: var(--space-1);
-    }
-
-    .top-drawer-frame {
-      position: relative;
-      overflow: visible;
-      width: 100%;
-      min-height: 0;
-      height: var(--top-expanded-height);
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-      box-shadow: none;
-    }
-
-    .top-bg-layer {
-      display: none;
-    }
-
-    .top-bg-box {
-      display: none;
-    }
-
-    .top-bg-expanded {
-      top: 0;
-      height: var(--top-expanded-height);
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .top-bg-collapsed {
-      top: 0;
-      height: var(--top-collapsed-height);
     }
 
     .top-swipe-wrap {
@@ -403,11 +317,6 @@
       width: 100%;
       min-height: 0;
       height: var(--top-expanded-height);
-      z-index: 1;
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-      box-shadow: none;
       transition: height 0.25s ease;
     }
 
@@ -438,7 +347,6 @@
       position: relative;
       width: 50%;
       min-width: 0;
-      min-height: 0;
     }
 
     .top-panel[aria-label="メモカード"] {
@@ -473,19 +381,15 @@
       line-height: 1.5;
     }
 
-    .filter-header {
+    .top-summary {
       margin-bottom: 0;
-      position: sticky;
-      top: 0;
-      z-index: 1;
     }
 
-    .filter-body {
+    .top-collapsible {
       margin-top: var(--space-2);
       max-height: 360px;
       opacity: 1;
       overflow: hidden;
-      z-index: 8;
       transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.2s ease;
     }
 
@@ -502,6 +406,12 @@
       padding: var(--space-2) var(--space-3);
       font-size: 12px;
       color: var(--text);
+    }
+
+    .top-summary {
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
 
     .summary-actions {
@@ -574,51 +484,33 @@
     }
 
     .sort-row {
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
+      display: grid;
       gap: var(--space-2);
+      grid-template-columns: auto auto;
+      align-items: end;
+      justify-content: start;
+    }
+
+    .sort-row label {
       min-width: 0;
     }
 
-    .sort-toggle-group {
-      display: inline-flex;
-      min-width: 0;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: color-mix(in srgb, var(--surface-2) 92%, white 8%);
-      overflow: hidden;
+    .sort-row select,
+    .sort-row button {
+      width: fit-content;
+      min-width: 112px;
     }
 
-    .sort-toggle {
-      min-width: 76px;
+    .sort-row select.sort-compact {
       min-height: calc(var(--control-height) - 4px);
-      border: 0;
-      border-right: 1px solid color-mix(in srgb, var(--line) 80%, white 20%);
-      border-radius: 0;
-      background: transparent;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 600;
-      padding: 0 10px;
+      padding: calc(var(--space-2) - 2px) var(--space-2);
     }
 
-    .sort-toggle:last-child {
-      border-right: 0;
-    }
-
-    .sort-toggle[aria-pressed="true"] {
-      background: #1e90ff;
-      color: #fff;
-    }
-
-    .sort-order-toggle {
-      min-width: 86px;
-      min-height: calc(var(--control-height) - 4px);
-      font-size: 12px;
-      font-weight: 600;
-      padding: 0 10px;
-      white-space: nowrap;
+    .sort-row select.sort-compact:focus-visible {
+      outline: none;
+      box-shadow:
+        inset 0 0 0 2px var(--focus),
+        0 0 0 1px color-mix(in srgb, var(--focus) 58%, transparent);
     }
 
     .top-fold-btn,
@@ -645,16 +537,11 @@
       display: none;
     }
 
-    .top-form.collapsed .filter-body {
+    .top-form.collapsed .top-collapsible {
       max-height: 0;
       opacity: 0;
       margin-top: 0;
       pointer-events: none;
-      visibility: hidden;
-    }
-
-    .top-form.collapsed .top-overlay-host {
-      pointer-events: auto;
     }
 
     .top-form.collapsed .top-expand-btn {
@@ -696,6 +583,11 @@
     }
 
     .bottom-form {
+      position: fixed;
+      left: 0;
+      transform: none;
+      width: min(calc(100vw - (var(--layout-side-padding) * 2)), var(--pc-content-max-width));
+      bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
       z-index: 60;
       box-shadow: 0 12px 22px rgb(15 23 42 / 24%);
     }
@@ -803,65 +695,33 @@
     }
 
     @media (max-width: 860px) {
+      :root {
+        --layout-side-padding: var(--space-2);
+      }
+
       body { padding: var(--space-2); }
-      body { background-size: 100% 100dvh, 100% 100dvh, 100% 100dvh; }
       .card :is(input, select) { font-size: 16px; }
       #memoInput { font-size: 16px; }
       .container {
         width: 100%;
         gap: var(--space-2);
-        height: calc(100dvh - (var(--space-2) * 2));
         min-height: calc(100dvh - (var(--space-2) * 2));
+        grid-template-rows: auto minmax(0, 1fr) auto;
       }
       .card,
       .top-form,
       .middle-form,
       .bottom-form { width: 100%; }
       .card { padding: var(--space-2); }
+      .bottom-form {
+        bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
+      }
+      .top-summary { grid-template-columns: 1fr; }
       .top-advanced { grid-template-columns: 1fr; gap: var(--space-2); }
-      .top-drawer-frame {
-        background: transparent;
-      }
-      .top-bg-box {
-        background: color-mix(in srgb, var(--surface-2) 96%, white 4%);
-      }
-      .filter-body {
-        padding: var(--space-2) var(--space-3);
-      }
-      .checkbox-row {
-        gap: 6px var(--space-2);
-      }
-      .checkbox-row label {
-        font-size: 12px;
-        letter-spacing: -0.01em;
-        line-height: 1.2;
-        white-space: nowrap;
-      }
-      .sort-row {
-        gap: 6px;
-      }
-      .sort-toggle-group {
-        flex: 1;
-      }
-      .sort-toggle {
-        flex: 1;
-        min-width: 0;
-        font-size: 11px;
-        padding: 0 4px;
-      }
-      .sort-order-toggle {
-        min-width: 74px;
-        font-size: 11px;
-        padding: 0 6px;
-      }
-      .memo-panel {
-        padding: var(--space-2) var(--space-3);
-        background: color-mix(in srgb, var(--surface-2) 96%, white 4%);
-      }
-      #memoInput {
-        padding: var(--space-2);
-        line-height: 1.45;
-      }
+      .sort-row { grid-template-columns: auto auto; }
+      .sort-row button { min-width: 96px; }
+      .sort-row select { min-width: 98px; }
+      .sort-row select.sort-compact { min-width: 102px; }
       .memo-actions { grid-template-columns: 1fr 1fr; }
       .ratio-8-2 { grid-template-columns: 1fr; }
       .bottom-static-controls .ratio-8-2 {
@@ -874,20 +734,8 @@
         padding-right: var(--space-2);
         white-space: nowrap;
       }
-      .bottom-swipe-wrap {
-        background: color-mix(in srgb, var(--surface-2) 94%, white 6%);
-      }
-      .bottom-panel {
-        padding: var(--space-2) var(--space-3);
-      }
       .search-inline { grid-template-columns: minmax(0, 1fr) auto; }
       .summary-box { font-size: 11px; }
-      .top-form {
-        min-height: var(--top-collapsed-footprint);
-        background: transparent;
-        border: 0;
-        box-shadow: none;
-      }
       .middle-form {
         display: flex;
         min-height: 0;
@@ -896,95 +744,28 @@
         flex: 1;
         height: 100%;
         max-height: none;
-        /*
-         * 段階的移行（第1段階）:
-         * show-top-spacer クラス依存を外し、モバイルでは常時トップ余白を確保する。
-         * 第2段階で JS の show-top-spacer ON/OFF ロジック復帰時に再調整する。
-         */
-        padding-top: var(--dummy-top-card-height);
-      }
-      .song-cards.show-top-spacer {
-        /* 段階的移行（第1段階）では実質未使用。第2段階での復帰用に定義を残す。 */
-        padding-top: var(--dummy-top-card-height);
-      }
-    }
-
-    @media (max-width: 420px) {
-      .checkbox-row {
-        gap: 4px var(--space-2);
-      }
-      .checkbox-row label {
-        font-size: 11px;
-        letter-spacing: -0.02em;
-      }
-      .sort-toggle {
-        font-size: 10px;
       }
     }
 
     @media (min-width: 861px) {
-      body {
-        padding: var(--space-4);
-      }
-
-      .container {
-        width: 100%;
-        max-width: var(--pc-content-max-width);
-        height: calc(100dvh - (var(--space-4) * 2));
-        min-height: calc(100dvh - (var(--space-4) * 2));
-      }
-
-      .card,
-      .top-form,
-      .middle-form,
-      .bottom-form {
-        width: 100%;
-        max-width: var(--pc-content-max-width);
-        margin-inline: auto;
-      }
-
-      .desktop-switch {
-        display: inline-flex;
-      }
-
-      .top-switch-bar {
-        display: flex;
-        grid-column: 1;
-        justify-content: flex-start;
-        margin: 0;
-        align-self: start;
-      }
-
-      .top-shell {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        column-gap: var(--space-2);
-        align-items: start;
-      }
-
-      .top-overlay-host {
-        position: static;
-        inset: auto;
-        margin-top: 0;
-        grid-column: 2;
-      }
-
-      .page-indicator {
-        display: none;
-      }
-
       .top-fold-btn,
       .top-expand-btn {
         display: none !important;
       }
 
-      .top-bg-collapsed {
-        display: none;
+      .top-form,
+      .middle-form,
+      .bottom-form {
+        width: min(
+          calc(100vw - (var(--layout-side-padding) * 2)),
+          var(--pc-content-max-width)
+        );
       }
 
-      .top-drawer-frame {
+      .top-swipe-wrap {
         height: var(--top-expanded-height);
       }
+
     }
 
     .song-cards {
@@ -998,11 +779,16 @@
 
     .middle-form {
       display: flex;
-      flex: 1;
       min-height: 0;
       padding: 0;
       background: transparent;
       border: 0;
+      position: fixed;
+      left: 0;
+      transform: none;
+      width: min(calc(100vw - (var(--layout-side-padding) * 2)), var(--pc-content-max-width));
+      top: calc(var(--space-4) + env(safe-area-inset-top));
+      bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
       z-index: 10;
       overflow: hidden;
     }
@@ -1279,7 +1065,19 @@
       border: 0;
       border-radius: var(--radius-sm);
       padding: var(--space-2);
-      min-height: 2em;
+      min-height: var(--dummy-end-card-height);
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      display: grid;
+      place-items: center;
+    }
+
+    .dummy-top-card {
+      border: 0;
+      border-radius: var(--radius-sm);
+      padding: var(--space-2);
+      min-height: calc(var(--dummy-top-card-height) + 1em);
       text-align: center;
       color: var(--muted);
       font-size: 12px;
@@ -1338,73 +1136,67 @@
   <div id="scrollBubbles" class="scroll-bubbles" aria-hidden="true"></div>
   <main class="container" id="songsPage">
     <section class="card top-form" id="topForm">
-      <div class="top-shell">
-        <div class="top-switch-bar">
-          <div class="desktop-switch" id="topDesktopSwitch" aria-label="上部カード切り替え">
-          </div>
-        </div>
-        <div class="page-indicator top-indicator" id="topPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
-        <div class="top-overlay-host">
-          <div class="top-drawer-frame">
-            <div class="top-bg-layer" aria-hidden="true">
-              <div class="top-bg-box top-bg-expanded"></div>
-              <div class="top-bg-box top-bg-collapsed"></div>
-            </div>
-            <div class="top-swipe-wrap" id="topSwipeWrap">
-              <div class="top-swipe-track" id="topSwipeTrack">
-                <section class="top-panel" aria-label="絞り込みカード">
-                  <div class="filter-header">
-                    <div class="summary-box">
-                      <span class="status-shell" id="statusShell" data-state="loading">
-                        <span class="status-dot" aria-hidden="true"></span>
-                        <span class="status" id="status"></span>
-                      </span>
-                      <div class="summary-actions">
-                        <div class="summary-inline count-inline"><span id="selectedCount">0</span>/<span id="totalCount">0</span>曲</div>
-                        <button id="collapseTopMenu" class="top-fold-btn" type="button" aria-label="絞り込みメニューを折りたたむ">折りたたみ</button>
-                        <button id="expandTopMenu" class="top-expand-btn" type="button" aria-label="絞り込みメニューを展開">展開</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="filter-body">
-                  <div id="errorLogWrap" class="error-log-wrap" aria-live="polite">
-                    <div class="error-log-head">
-                      <strong>エラー情報</strong>
-                      <button id="copyErrorLog" type="button">コピー</button>
-                    </div>
-                    <pre id="errorLog" class="error-log">エラー時に情報を表示します。</pre>
-                  </div>
-
-                  <div class="top-advanced">
-                    <div class="checkbox-row" aria-label="絞り込み">
-                        <label><input type="checkbox" id="kindLive" checked>歌枠</label>
-                        <label><input type="checkbox" id="kindCover" checked>歌ってみた</label>
-                        <label><input type="checkbox" id="kindShort" checked>ショート</label>
-                    </div>
-                    <div class="sort-row" aria-label="表示切替">
-                      <div class="sort-toggle-group" role="group" aria-label="並び替え項目">
-                        <button id="sortByDate" class="sort-toggle" type="button" aria-pressed="true">投稿日順</button>
-                        <button id="sortByTitle" class="sort-toggle" type="button" aria-pressed="false">楽曲順</button>
-                        <button id="sortByArtist" class="sort-toggle" type="button" aria-pressed="false">歌手名順</button>
-                      </div>
-                      <button id="sortOrderToggle" class="sort-order-toggle" type="button" aria-pressed="false">降順</button>
-                    </div>
-                  </div>
+      <div class="page-indicator top-indicator" id="topPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
+      <div class="top-swipe-wrap" id="topSwipeWrap">
+        <div class="top-swipe-track" id="topSwipeTrack">
+          <section class="top-panel" aria-label="絞り込みカード">
+            <div class="top-summary">
+              <div class="summary-box">
+                <span class="status-shell" id="statusShell" data-state="loading">
+                  <span class="status-dot" aria-hidden="true"></span>
+                  <span class="status" id="status"></span>
+                </span>
+                <div class="summary-actions">
+                  <div class="summary-inline count-inline"><span id="selectedCount">0</span>/<span id="totalCount">0</span>曲</div>
+                  <button id="collapseTopMenu" class="top-fold-btn" type="button" aria-label="絞り込みメニューを折りたたむ">折りたたみ</button>
+                  <button id="expandTopMenu" class="top-expand-btn" type="button" aria-label="絞り込みメニューを展開">展開</button>
                 </div>
-                </section>
-
-                <section class="top-panel" aria-label="メモカード">
-                  <div class="memo-panel">
-                    <textarea id="memoInput" aria-label="メモ帳" placeholder="メモを入力"></textarea>
-                    <div class="memo-actions">
-                      <button id="copyMemo" type="button">コピー</button>
-                      <button id="pasteMemo" type="button">ペースト</button>
-                    </div>
-                  </div>
-                </section>
               </div>
             </div>
-          </div>
+
+            <div class="top-collapsible">
+              <div id="errorLogWrap" class="error-log-wrap" aria-live="polite">
+                <div class="error-log-head">
+                  <strong>エラー情報</strong>
+                  <button id="copyErrorLog" type="button">コピー</button>
+                </div>
+                <pre id="errorLog" class="error-log">エラー時に情報を表示します。</pre>
+              </div>
+
+              <div class="top-advanced">
+                <div class="checkbox-row" aria-label="絞り込み">
+                    <label><input type="checkbox" id="kindLive" checked>歌枠</label>
+                    <label><input type="checkbox" id="kindCover" checked>歌ってみた</label>
+                    <label><input type="checkbox" id="kindShort" checked>ショート</label>
+                </div>
+                <div class="sort-row" aria-label="表示切替">
+                  <label aria-label="並び替え項目">
+                    <select id="sortField" class="sort-compact" aria-label="並び替え項目">
+                      <option value="artist">アーティスト名</option>
+                      <option value="title">楽曲名</option>
+                      <option value="date" selected>投稿日</option>
+                    </select>
+                  </label>
+                  <label aria-label="並び順">
+                    <select id="sortOrder" class="sort-compact" aria-label="並び順">
+                      <option value="asc">昇順</option>
+                      <option value="desc" selected>降順</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="top-panel" aria-label="メモカード">
+            <div class="memo-panel">
+              <textarea id="memoInput" aria-label="メモ帳" placeholder="メモを入力"></textarea>
+              <div class="memo-actions">
+                <button id="copyMemo" type="button">コピー</button>
+                <button id="pasteMemo" type="button">ペースト</button>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </section>
@@ -1415,10 +1207,6 @@
 
     <section class="card bottom-form">
       <div class="page-indicator bottom-indicator" id="bottomPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
-      <div class="desktop-switch" id="bottomDesktopSwitch" aria-label="下部カード切り替え">
-        <button id="bottomSwitchSearch" type="button" class="active" aria-pressed="true">検索</button>
-        <button id="bottomSwitchMyDanmaku" type="button" aria-pressed="false">マイ弾幕</button>
-      </div>
       <div class="bottom-swipe-wrap" id="bottomSwipeWrap">
         <div class="bottom-swipe-track" id="bottomSwipeTrack">
           <section class="bottom-panel" aria-label="検索フォームカード">
