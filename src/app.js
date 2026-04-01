@@ -916,27 +916,11 @@ function headersToObject(headers) {
     }
 
     function updateSortControlState() {
-      const sortByDate = byId('sortByDate');
-      const sortByTitle = byId('sortByTitle');
-      const sortByArtist = byId('sortByArtist');
-      const sortOrderToggle = byId('sortOrderToggle');
-      if (!sortByDate || !sortByTitle || !sortByArtist || !sortOrderToggle) return;
-
-      const pressedMap = {
-        date: sortByDate,
-        title: sortByTitle,
-        artist: sortByArtist,
-      };
-
-      Object.entries(pressedMap).forEach(([field, element]) => {
-        const isPressed = state.sortField === field;
-        element.setAttribute('aria-pressed', String(isPressed));
-      });
-
-      const isAsc = state.sortOrder === 'asc';
-      sortOrderToggle.setAttribute('aria-pressed', String(isAsc));
-      sortOrderToggle.textContent = isAsc ? '昇順' : '降順';
-      sortOrderToggle.setAttribute('aria-label', `並び順: ${isAsc ? '昇順' : '降順'}`);
+      const sortField = byId('sortField');
+      const sortOrder = byId('sortOrder');
+      if (!sortField || !sortOrder) return;
+      sortField.value = state.sortField;
+      sortOrder.value = state.sortOrder;
     }
 
     function bind() {
@@ -953,29 +937,14 @@ function headersToObject(headers) {
       byId('kindShort').addEventListener('change', () => toggleKind('short'));
       byId('kindLive').addEventListener('change', () => toggleKind('live'));
 
-      byId('sortByDate').addEventListener('click', () => {
-        state.sortField = 'date';
+      byId('sortField').addEventListener('change', (evt) => {
+        state.sortField = String(evt.target.value || 'date');
         state.sortMode = `${state.sortField}-${state.sortOrder}`;
         updateSortControlState();
         rerenderOrLoadSongs();
       });
-
-      byId('sortByTitle').addEventListener('click', () => {
-        state.sortField = 'title';
-        state.sortMode = `${state.sortField}-${state.sortOrder}`;
-        updateSortControlState();
-        rerenderOrLoadSongs();
-      });
-
-      byId('sortByArtist').addEventListener('click', () => {
-        state.sortField = 'artist';
-        state.sortMode = `${state.sortField}-${state.sortOrder}`;
-        updateSortControlState();
-        rerenderOrLoadSongs();
-      });
-
-      byId('sortOrderToggle').addEventListener('click', () => {
-        state.sortOrder = state.sortOrder === 'desc' ? 'asc' : 'desc';
+      byId('sortOrder').addEventListener('change', (evt) => {
+        state.sortOrder = String(evt.target.value || 'desc');
         state.sortMode = `${state.sortField}-${state.sortOrder}`;
         updateSortControlState();
         rerenderOrLoadSongs();
