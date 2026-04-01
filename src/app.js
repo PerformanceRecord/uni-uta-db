@@ -238,12 +238,14 @@ function headersToObject(headers) {
         applyTopFormCollapsedState();
         syncTopPanelSize();
         updateDummyCardsHeight();
+        updateTopSpacerVisibility();
         return;
       }
       topMenuCollapsed = Boolean(nextCollapsed);
       applyTopFormCollapsedState();
       syncTopPanelSize();
       updateDummyCardsHeight();
+      updateTopSpacerVisibility();
     }
 
     function syncTopPanelSize() {
@@ -304,6 +306,7 @@ function headersToObject(headers) {
             syncTopPanelSize();
             updateDummyCardsHeight();
           }
+          updateTopSpacerVisibility();
           topSwitchFilter?.classList.toggle('active', index === 0);
           topSwitchFilter?.setAttribute('aria-pressed', String(index === 0));
           topSwitchMemo?.classList.toggle('active', index === 1);
@@ -443,15 +446,21 @@ function headersToObject(headers) {
     function updateMiddleCardsHeight() {
       if (!rows) return;
 
-      const middleForm = document.querySelector('.middle-form');
+      const topForm = byId('topForm');
       const bottomForm = document.querySelector('.bottom-form');
-      if (!middleForm || !bottomForm) return;
+      if (!topForm || !bottomForm) return;
 
-      const middleRect = middleForm.getBoundingClientRect();
+      const topRect = topForm.getBoundingClientRect();
       const bottomRect = bottomForm.getBoundingClientRect();
       const viewportHeight = window.visualViewport?.height || window.innerHeight;
       const bottomTop = Math.min(bottomRect.top, viewportHeight);
-      const available = Math.floor(bottomTop - middleRect.top - 4);
+      const topStyles = window.getComputedStyle(topForm);
+      const rootStyles = window.getComputedStyle(document.documentElement);
+      const collapsedHeight = Number.parseFloat(topStyles.getPropertyValue('--top-collapsed-height')) || 0;
+      const topPadding = Number.parseFloat(topStyles.paddingTop) || 0;
+      const collapsedBottomPadding = Number.parseFloat(rootStyles.getPropertyValue('--space-2')) || 0;
+      const fixedMiddleTop = topRect.top + topPadding + collapsedHeight + collapsedBottomPadding;
+      const available = Math.floor(bottomTop - fixedMiddleTop - 4);
       if (available > 120) {
         rows.style.maxHeight = `${available}px`;
       } else {
@@ -461,9 +470,23 @@ function headersToObject(headers) {
 
     function updateDummyCardsHeight() {
       const topForm = byId('topForm');
-      if (topForm) {
-        document.documentElement.style.setProperty('--dummy-top-card-height', '0px');
-      }
+      if (!topForm) return;
+      const topStyles = window.getComputedStyle(topForm);
+      const rootStyles = window.getComputedStyle(document.documentElement);
+      const expandedHeight = Number.parseFloat(topStyles.getPropertyValue('--top-expanded-height')) || 0;
+      const collapsedHeight = Number.parseFloat(topStyles.getPropertyValue('--top-collapsed-height')) || 0;
+      const collapsedBottomPadding = Number.parseFloat(rootStyles.getPropertyValue('--space-2')) || 0;
+      const topGap = Math.max(0, expandedHeight - (collapsedHeight + collapsedBottomPadding));
+      document.documentElement.style.setProperty('--dummy-top-card-height', `${Math.round(topGap)}px`);
+    }
+
+    function updateTopSpacerVisibility() {
+      if (!rows) return;
+      const topForm = byId('topForm');
+      const isFilterPanel = getTopSwipeCard() === 0;
+      const isExpanded = Boolean(topForm) && !topForm.classList.contains('collapsed');
+      const shouldShow = isMobileLayout() && isFilterPanel && isExpanded && rows.scrollTop <= 1;
+      rows.classList.toggle('show-top-spacer', shouldShow);
     }
 
 
@@ -1000,6 +1023,7 @@ function headersToObject(headers) {
 
         updateTopFormCollapseByScroll();
         collapseExpandedWhenOutOfView();
+        updateTopSpacerVisibility();
       });
 
 
@@ -1016,6 +1040,7 @@ function headersToObject(headers) {
       updateScrollTopOffset();
       updateMiddleCardsHeight();
       updateTopFormCollapseByScroll();
+      updateTopSpacerVisibility();
     }
 
 export function initializeApp() {

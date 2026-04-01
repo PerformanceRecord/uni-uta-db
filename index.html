@@ -332,6 +332,8 @@
       overflow: visible;
       --top-expanded-height: 170px;
       --top-collapsed-height: 0px;
+      --top-collapsed-padding-bottom: var(--space-2);
+      --top-collapsed-footprint: calc(var(--space-2) + var(--top-collapsed-height) + var(--top-collapsed-padding-bottom));
       --top-reserved-height: var(--top-expanded-height);
     }
 
@@ -357,7 +359,7 @@
     .top-form.collapsed {
       padding-top: var(--space-2);
       padding-bottom: var(--space-2);
-      min-height: 0;
+      min-height: var(--top-collapsed-footprint);
     }
 
     .top-swipe-track {
@@ -416,11 +418,15 @@
     }
 
     .top-collapsible {
-      margin-top: var(--space-2);
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + var(--space-2));
       max-height: 360px;
       opacity: 1;
       overflow: hidden;
-      transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.2s ease;
+      z-index: 8;
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
     .summary-box {
@@ -568,10 +574,10 @@
     }
 
     .top-form.collapsed .top-collapsible {
-      max-height: 0;
       opacity: 0;
-      margin-top: 0;
+      transform: translateY(-4px);
       pointer-events: none;
+      visibility: hidden;
     }
 
     .top-form.collapsed .top-expand-btn {
@@ -755,7 +761,11 @@
       .search-inline { grid-template-columns: minmax(0, 1fr) auto; }
       .summary-box { font-size: 11px; }
       .top-form {
-        min-height: var(--top-reserved-height);
+        min-height: var(--top-collapsed-footprint);
+      }
+      .top-form:not(.memo-active) .top-swipe-wrap,
+      .top-form:not(.memo-active).collapsed .top-swipe-wrap {
+        height: var(--top-collapsed-height);
       }
       .middle-form {
         display: flex;
@@ -765,6 +775,10 @@
         flex: 1;
         height: 100%;
         max-height: none;
+        padding-top: 0;
+      }
+      .song-cards.show-top-spacer {
+        padding-top: var(--dummy-top-card-height);
       }
     }
 
@@ -1105,18 +1119,6 @@
       border-radius: var(--radius-sm);
       padding: var(--space-2);
       min-height: 2em;
-      text-align: center;
-      color: var(--muted);
-      font-size: 12px;
-      display: grid;
-      place-items: center;
-    }
-
-    .dummy-top-card {
-      border: 0;
-      border-radius: var(--radius-sm);
-      padding: var(--space-2);
-      min-height: calc(var(--dummy-top-card-height) + 1em);
       text-align: center;
       color: var(--muted);
       font-size: 12px;
