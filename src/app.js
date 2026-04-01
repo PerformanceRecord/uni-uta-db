@@ -949,31 +949,7 @@ function headersToObject(headers) {
       };
 
       const updateScrollTopOffset = () => {
-        const container = byId('songsPage');
-        const topForm = byId('topForm');
-        const middleForm = document.querySelector('.middle-form');
-        const bottomForm = document.querySelector('.bottom-form');
-        if (!bottomForm || !container) return;
-
-        const containerRect = container.getBoundingClientRect();
-        const sharedLeft = `${Math.round(containerRect.left)}px`;
-        const sharedWidth = `${Math.round(containerRect.width)}px`;
-
-        if (topForm) {
-          topForm.style.left = sharedLeft;
-          topForm.style.width = sharedWidth;
-        }
-        if (middleForm) {
-          middleForm.style.left = sharedLeft;
-          middleForm.style.width = sharedWidth;
-        }
-        bottomForm.style.left = sharedLeft;
-        bottomForm.style.width = sharedWidth;
-
-        const rect = bottomForm.getBoundingClientRect();
-        const overlap = Math.max(0, window.innerHeight - rect.top);
-        const offset = overlap > 0 ? overlap + 8 : 0;
-        document.documentElement.style.setProperty('--scroll-top-offset', `${offset}px`);
+        document.documentElement.style.setProperty('--scroll-top-offset', '0px');
         updateMiddleCardsHeight();
         updateDummyCardsHeight();
         syncTopPanelSize();
