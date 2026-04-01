@@ -357,7 +357,7 @@
       margin-bottom: var(--space-1);
     }
 
-    .top-swipe-wrap {
+    .top-drawer-frame {
       position: relative;
       overflow: hidden;
       width: 100%;
@@ -370,7 +370,19 @@
       transition: height 0.25s ease;
     }
 
-    .top-form.collapsed .top-swipe-wrap {
+    .top-swipe-wrap {
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      min-height: 0;
+      height: 100%;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .top-form.collapsed .top-drawer-frame {
       height: var(--top-collapsed-height);
       border-width: 0;
       box-shadow: none;
@@ -408,9 +420,9 @@
     }
 
     .memo-panel {
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: var(--surface-2);
+      border: 0;
+      border-radius: 0;
+      background: transparent;
       padding: var(--space-2);
       min-height: 0;
       height: 100%;
@@ -435,22 +447,25 @@
       line-height: 1.5;
     }
 
-    .top-summary {
+    .filter-header {
       margin-bottom: 0;
+      padding: var(--space-2) var(--space-3);
     }
 
-    .top-collapsible {
+    .filter-body {
       max-height: 360px;
       opacity: 1;
       overflow: hidden;
       z-index: 8;
+      border-top: 1px solid var(--line);
+      padding: var(--space-2);
       transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
     .summary-box {
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: var(--surface-2);
+      border: 0;
+      border-radius: 0;
+      background: transparent;
       min-height: var(--control-height);
       display: flex;
       align-items: center;
@@ -460,12 +475,6 @@
       padding: var(--space-2) var(--space-3);
       font-size: 12px;
       color: var(--text);
-    }
-
-    .top-summary {
-      position: sticky;
-      top: 0;
-      z-index: 2;
     }
 
     .summary-actions {
@@ -591,7 +600,7 @@
       display: none;
     }
 
-    .top-form.collapsed .top-collapsible {
+    .top-form.collapsed .filter-body {
       opacity: 0;
       transform: translateY(-4px);
       pointer-events: none;
@@ -762,9 +771,6 @@
       .middle-form,
       .bottom-form { width: 100%; }
       .card { padding: var(--space-2); }
-      .top-summary { grid-template-columns: 1fr;
-        position: relative;
-        top: auto; }
       .top-advanced { grid-template-columns: 1fr; gap: var(--space-2); }
       .sort-row { grid-template-columns: auto auto; }
       .sort-row button { min-width: 96px; }
@@ -786,6 +792,9 @@
       .summary-box { font-size: 11px; }
       .top-form {
         min-height: var(--top-collapsed-footprint);
+        background: transparent;
+        border: 0;
+        box-shadow: none;
       }
       .middle-form {
         display: flex;
@@ -846,8 +855,8 @@
         display: none !important;
       }
 
-      .top-form.collapsed .top-swipe-wrap,
-      .top-form:not(.collapsed) .top-swipe-wrap {
+      .top-form.collapsed .top-drawer-frame,
+      .top-form:not(.collapsed) .top-drawer-frame {
         height: var(--top-expanded-height);
       }
     }
@@ -1211,24 +1220,25 @@
           </div>
         </div>
         <div class="page-indicator top-indicator" id="topPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
-        <div class="top-summary">
-          <div class="summary-box">
-            <span class="status-shell" id="statusShell" data-state="loading">
-              <span class="status-dot" aria-hidden="true"></span>
-              <span class="status" id="status"></span>
-            </span>
-            <div class="summary-actions">
-              <div class="summary-inline count-inline"><span id="selectedCount">0</span>/<span id="totalCount">0</span>曲</div>
-              <button id="collapseTopMenu" class="top-fold-btn" type="button" aria-label="絞り込みメニューを折りたたむ">折りたたみ</button>
-              <button id="expandTopMenu" class="top-expand-btn" type="button" aria-label="絞り込みメニューを展開">展開</button>
-            </div>
-          </div>
-        </div>
         <div class="top-overlay-host">
-          <div class="top-swipe-wrap" id="topSwipeWrap">
-            <div class="top-swipe-track" id="topSwipeTrack">
-              <section class="top-panel" aria-label="絞り込みカード">
-                <div class="top-collapsible">
+          <div class="top-drawer-frame">
+            <div class="top-swipe-wrap" id="topSwipeWrap">
+              <div class="top-swipe-track" id="topSwipeTrack">
+                <section class="top-panel" aria-label="絞り込みカード">
+                  <div class="filter-header">
+                    <div class="summary-box">
+                      <span class="status-shell" id="statusShell" data-state="loading">
+                        <span class="status-dot" aria-hidden="true"></span>
+                        <span class="status" id="status"></span>
+                      </span>
+                      <div class="summary-actions">
+                        <div class="summary-inline count-inline"><span id="selectedCount">0</span>/<span id="totalCount">0</span>曲</div>
+                        <button id="collapseTopMenu" class="top-fold-btn" type="button" aria-label="絞り込みメニューを折りたたむ">折りたたみ</button>
+                        <button id="expandTopMenu" class="top-expand-btn" type="button" aria-label="絞り込みメニューを展開">展開</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="filter-body">
                   <div id="errorLogWrap" class="error-log-wrap" aria-live="polite">
                     <div class="error-log-head">
                       <strong>エラー情報</strong>
@@ -1260,17 +1270,18 @@
                     </div>
                   </div>
                 </div>
-              </section>
+                </section>
 
-              <section class="top-panel" aria-label="メモカード">
-                <div class="memo-panel">
-                  <textarea id="memoInput" aria-label="メモ帳" placeholder="メモを入力"></textarea>
-                  <div class="memo-actions">
-                    <button id="copyMemo" type="button">コピー</button>
-                    <button id="pasteMemo" type="button">ペースト</button>
+                <section class="top-panel" aria-label="メモカード">
+                  <div class="memo-panel">
+                    <textarea id="memoInput" aria-label="メモ帳" placeholder="メモを入力"></textarea>
+                    <div class="memo-actions">
+                      <button id="copyMemo" type="button">コピー</button>
+                      <button id="pasteMemo" type="button">ペースト</button>
+                    </div>
                   </div>
-                </div>
-              </section>
+                </section>
+              </div>
             </div>
           </div>
         </div>
