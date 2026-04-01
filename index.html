@@ -748,6 +748,10 @@
     }
 
     @media (min-width: 861px) {
+      :root {
+        --pc-content-max-width: calc(100vw - (var(--layout-side-padding) * 2));
+      }
+
       .top-fold-btn,
       .top-expand-btn {
         display: none !important;
