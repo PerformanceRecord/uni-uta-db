@@ -212,13 +212,12 @@ function headersToObject(headers) {
     }
 
 
-    function getCollapsedTopHeight(topForm) {
-      if (!topForm) return 0;
+    function getCollapsedTopHeight(topForm, filterPanel) {
+      if (!topForm || !filterPanel) return 0;
       const wasCollapsed = topForm.classList.contains('collapsed');
       topForm.classList.add('collapsed');
-      const statusSummary = topForm.querySelector('.filter-header .summary-box');
-      const fallbackSummary = topForm.querySelector('.filter-header');
-      const collapsedHeightBase = Math.ceil((statusSummary || fallbackSummary || topForm).getBoundingClientRect().height);
+      const statusSummary = filterPanel.querySelector('.top-summary .summary-box');
+      const collapsedHeightBase = Math.ceil((statusSummary || filterPanel).getBoundingClientRect().height);
       const collapsedHeight = collapsedHeightBase + 2;
       if (!wasCollapsed) {
         topForm.classList.remove('collapsed');
@@ -239,14 +238,12 @@ function headersToObject(headers) {
         applyTopFormCollapsedState();
         syncTopPanelSize();
         updateDummyCardsHeight();
-        updateTopSpacerVisibility();
         return;
       }
       topMenuCollapsed = Boolean(nextCollapsed);
       applyTopFormCollapsedState();
       syncTopPanelSize();
       updateDummyCardsHeight();
-      updateTopSpacerVisibility();
     }
 
     function syncTopPanelSize() {
@@ -259,13 +256,12 @@ function headersToObject(headers) {
       topForm.classList.remove('collapsed');
       const expandedHeight = Math.ceil(filterPanel.getBoundingClientRect().height);
 
-      const collapsedHeight = getCollapsedTopHeight(topForm);
+      const collapsedHeight = getCollapsedTopHeight(topForm, filterPanel);
 
       topForm.classList.toggle('collapsed', hasCollapsed);
 
       if (expandedHeight > 0) {
         topForm.style.setProperty('--top-expanded-height', `${expandedHeight}px`);
-        topForm.style.setProperty('--top-reserved-height', `${expandedHeight}px`);
       }
       if (collapsedHeight > 0) {
         topForm.style.setProperty('--top-collapsed-height', `${collapsedHeight}px`);
@@ -286,6 +282,7 @@ function headersToObject(headers) {
       const collapseButton = byId('collapseTopMenu');
       const expandButton = byId('expandTopMenu');
       const topSwitchFilter = byId('topSwitchFilter');
+      const topSwitchMemo = byId('topSwitchMemo');
 
       if (!wrap || !track) return;
       const topSwipe = setupSwipeTrack({
@@ -306,9 +303,10 @@ function headersToObject(headers) {
             syncTopPanelSize();
             updateDummyCardsHeight();
           }
-          updateTopSpacerVisibility();
           topSwitchFilter?.classList.toggle('active', index === 0);
           topSwitchFilter?.setAttribute('aria-pressed', String(index === 0));
+          topSwitchMemo?.classList.toggle('active', index === 1);
+          topSwitchMemo?.setAttribute('aria-pressed', String(index === 1));
         },
       });
       setTopSwipeCard = topSwipe.setCard;
@@ -330,6 +328,7 @@ function headersToObject(headers) {
         setTopMenuCollapsed(false);
       });
       topSwitchFilter?.addEventListener('click', () => setTopSwipeCard(0));
+      topSwitchMemo?.addEventListener('click', () => setTopSwipeCard(1));
 
       syncTopPanelSize();
       window.addEventListener('resize', syncTopPanelSize);
@@ -443,21 +442,11 @@ function headersToObject(headers) {
     function updateMiddleCardsHeight() {
       if (!rows) return;
 
-      const topForm = byId('topForm');
-      const bottomForm = document.querySelector('.bottom-form');
-      if (!topForm || !bottomForm) return;
+      const middleForm = document.querySelector('.middle-form');
+      if (!middleForm) return;
 
-      const topRect = topForm.getBoundingClientRect();
-      const bottomRect = bottomForm.getBoundingClientRect();
-      const viewportHeight = window.visualViewport?.height || window.innerHeight;
-      const bottomTop = Math.min(bottomRect.top, viewportHeight);
-      const topStyles = window.getComputedStyle(topForm);
-      const rootStyles = window.getComputedStyle(document.documentElement);
-      const collapsedHeight = Number.parseFloat(topStyles.getPropertyValue('--top-collapsed-height')) || 0;
-      const topPadding = Number.parseFloat(topStyles.paddingTop) || 0;
-      const collapsedBottomPadding = Number.parseFloat(rootStyles.getPropertyValue('--space-2')) || 0;
-      const fixedMiddleTop = topRect.top + topPadding + collapsedHeight + collapsedBottomPadding;
-      const available = Math.floor(bottomTop - fixedMiddleTop - 4);
+      const middleRect = middleForm.getBoundingClientRect();
+      const available = Math.floor(middleRect.height - 4);
       if (available > 120) {
         rows.style.maxHeight = `${available}px`;
       } else {
@@ -467,29 +456,16 @@ function headersToObject(headers) {
 
     function updateDummyCardsHeight() {
       const topForm = byId('topForm');
-      if (!topForm) return;
-      const topStyles = window.getComputedStyle(topForm);
-      const rootStyles = window.getComputedStyle(document.documentElement);
-      const expandedHeight = Number.parseFloat(topStyles.getPropertyValue('--top-expanded-height')) || 0;
-      const collapsedHeight = Number.parseFloat(topStyles.getPropertyValue('--top-collapsed-height')) || 0;
-      const collapsedBottomPadding = Number.parseFloat(rootStyles.getPropertyValue('--space-2')) || 0;
-      const topGap = Math.max(0, expandedHeight - (collapsedHeight + collapsedBottomPadding));
-      document.documentElement.style.setProperty('--dummy-top-card-height', `${Math.round(topGap)}px`);
-    }
+      if (topForm) {
+        document.documentElement.style.setProperty('--dummy-top-card-height', '0px');
+      }
 
-    function updateTopSpacerVisibility() {
-      /*
-       * 段階的移行（第1段階）:
-       * レイアウト責務を CSS 側へ寄せるため、
-       * show-top-spacer の JS ON/OFF は一時的に無効化する。
-       *
-       * 第2段階で復帰予定:
-       * - 最上段スクロール位置
-       * - フィルターパネル表示状態
-       * - トップメニュー展開状態
-       * を条件に show-top-spacer を再制御する。
-       */
-      return;
+      const searchPanel = document.querySelector('.bottom-panel[aria-label="検索フォームカード"]');
+      if (!searchPanel) return;
+      const bottomHeight = Math.ceil(searchPanel.getBoundingClientRect().height);
+      if (bottomHeight > 0) {
+        document.documentElement.style.setProperty('--dummy-end-card-height', `${bottomHeight}px`);
+      }
     }
 
 
@@ -915,14 +891,6 @@ function headersToObject(headers) {
       rerenderOrLoadSongs();
     }
 
-    function updateSortControlState() {
-      const sortField = byId('sortField');
-      const sortOrder = byId('sortOrder');
-      if (!sortField || !sortOrder) return;
-      sortField.value = state.sortField;
-      sortOrder.value = state.sortOrder;
-    }
-
     function bind() {
       if (!ENABLE_ERROR_LOG_UI) {
         errorLogWrap.hidden = true;
@@ -937,16 +905,15 @@ function headersToObject(headers) {
       byId('kindShort').addEventListener('change', () => toggleKind('short'));
       byId('kindLive').addEventListener('change', () => toggleKind('live'));
 
-      byId('sortField').addEventListener('change', (evt) => {
-        state.sortField = String(evt.target.value || 'date');
+      byId('sortField').addEventListener('change', (e) => {
+        state.sortField = e.target.value;
         state.sortMode = `${state.sortField}-${state.sortOrder}`;
-        updateSortControlState();
         rerenderOrLoadSongs();
       });
-      byId('sortOrder').addEventListener('change', (evt) => {
-        state.sortOrder = String(evt.target.value || 'desc');
+
+      byId('sortOrder').addEventListener('change', (e) => {
+        state.sortOrder = e.target.value;
         state.sortMode = `${state.sortField}-${state.sortOrder}`;
-        updateSortControlState();
         rerenderOrLoadSongs();
       });
 
@@ -1017,8 +984,6 @@ function headersToObject(headers) {
       });
 
       window.addEventListener('resize', updateScrollTopOffset);
-      window.visualViewport?.addEventListener('resize', updateScrollTopOffset);
-      window.visualViewport?.addEventListener('scroll', updateScrollTopOffset);
 
       rows.addEventListener('scroll', () => {
         const cardSample = rows.querySelector('.song-card');
@@ -1035,7 +1000,6 @@ function headersToObject(headers) {
 
         updateTopFormCollapseByScroll();
         collapseExpandedWhenOutOfView();
-        updateTopSpacerVisibility();
       });
 
 
@@ -1052,11 +1016,11 @@ function headersToObject(headers) {
       updateScrollTopOffset();
       updateMiddleCardsHeight();
       updateTopFormCollapseByScroll();
-      updateTopSpacerVisibility();
-      updateSortControlState();
     }
 
 export function initializeApp() {
+    byId('sortField').value = state.sortField;
+    byId('sortOrder').value = state.sortOrder;
     state.sortMode = `${state.sortField}-${state.sortOrder}`;
     state.myDanmaku = loadMyDanmakuCache();
     if (!state.myDanmaku) triggerSwipeHint();

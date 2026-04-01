@@ -13,7 +13,7 @@ export function setLoadingStatus() {
 }
 
 export function setRunningStatus(visibleCount, totalCount) {
-  setStatus(`サーバー稼働中 ${visibleCount}/${totalCount}件`, 'ok');
+  setStatus(`サーバー稼働中(${visibleCount}/${totalCount}件 表示)`, 'ok');
 }
 
 export function setStoppedStatus() {
