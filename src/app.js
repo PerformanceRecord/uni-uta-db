@@ -956,8 +956,11 @@ function headersToObject(headers) {
         if (!bottomForm || !container) return;
 
         const containerRect = container.getBoundingClientRect();
-        const sharedLeft = `${Math.round(containerRect.left)}px`;
-        const sharedWidth = `${Math.round(containerRect.width)}px`;
+        const maxCardWidth = 860;
+        const cappedWidth = Math.min(containerRect.width, maxCardWidth);
+        const cappedLeft = containerRect.left + ((containerRect.width - cappedWidth) / 2);
+        const sharedLeft = `${Math.round(cappedLeft)}px`;
+        const sharedWidth = `${Math.round(cappedWidth)}px`;
 
         if (topForm) {
           topForm.style.left = sharedLeft;
