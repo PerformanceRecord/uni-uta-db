@@ -367,9 +367,10 @@ function headersToObject(headers) {
       if (!scrollBubbles) return;
       const burst = mode === 'burst';
       const normalizedIntensity = Math.max(1, Number.isFinite(intensity) ? intensity : 1);
+      const cappedIntensity = Math.min(40, normalizedIntensity);
       const bubbleCount = burst
-        ? Math.max(1, Math.round(normalizedIntensity * 3))
-        : Math.max(1, Math.round(normalizedIntensity));
+        ? Math.max(5, Math.round(cappedIntensity * 3))
+        : Math.max(5, Math.round(cappedIntensity));
       for (let i = 0; i < bubbleCount; i += 1) {
         const bubble = document.createElement('span');
         bubble.className = 'scroll-bubble';
@@ -985,33 +986,57 @@ function headersToObject(headers) {
       };
 
       let lastBubbleAt = 0;
+      let lastWindowScrollTop = window.scrollY;
+      let lastWindowBubbleAt = Date.now();
       let previousRowsScrollTop = 0;
-      const maybeBubble = () => {
+      let lastRowsBubbleAt = Date.now();
+
+      const computeBubbleIntensity = (deltaPx, elapsedMs, cardHeight) => {
+        const normalizedDistance = deltaPx / Math.max(1, cardHeight);
+        const velocityBoost = deltaPx / Math.max(16, elapsedMs * 4);
+        return normalizedDistance * (1 + velocityBoost);
+      };
+
+      const maybeBubble = (deltaPx, elapsedMs, cardHeight) => {
         const now = Date.now();
-        if (now - lastBubbleAt < 120) return;
+        if (now - lastBubbleAt < 10) return;
+        const intensity = computeBubbleIntensity(deltaPx, elapsedMs, cardHeight);
+        if (intensity < 0.4) return;
         lastBubbleAt = now;
-        createScrollBubbles();
+        const mode = intensity >= 10 ? 'burst' : 'normal';
+        createScrollBubbles(mode, intensity);
       };
 
       window.addEventListener('scroll', () => {
         updateTopFormCollapseByScroll();
         updateScrollTopOffset();
-        maybeBubble();
+
+        const now = Date.now();
+        const deltaWindow = Math.abs(window.scrollY - lastWindowScrollTop);
+        const elapsedWindow = Math.max(1, now - lastWindowBubbleAt);
+        const cardSample = rows.querySelector('.song-card');
+        const rowGap = Number.parseFloat(window.getComputedStyle(rows).rowGap || '0') || 0;
+        const cardHeight = cardSample ? (cardSample.offsetHeight + rowGap) : 44;
+
+        maybeBubble(deltaWindow, elapsedWindow, cardHeight);
+        lastWindowScrollTop = window.scrollY;
+        lastWindowBubbleAt = now;
       });
 
       window.addEventListener('resize', updateScrollTopOffset);
 
       rows.addEventListener('scroll', () => {
+        const now = Date.now();
         const cardSample = rows.querySelector('.song-card');
         const rowGap = Number.parseFloat(window.getComputedStyle(rows).rowGap || '0') || 0;
         const cardHeight = cardSample ? (cardSample.offsetHeight + rowGap) : 44;
-        const deltaRows = Math.abs(rows.scrollTop - previousRowsScrollTop) / Math.max(1, cardHeight);
-        previousRowsScrollTop = rows.scrollTop;
+        const deltaPx = Math.abs(rows.scrollTop - previousRowsScrollTop);
+        const elapsedRows = Math.max(1, now - lastRowsBubbleAt);
 
-        if (deltaRows >= 1) {
-          const mode = deltaRows >= 10 ? 'burst' : 'normal';
-          createScrollBubbles(mode, deltaRows);
-        }
+        maybeBubble(deltaPx, elapsedRows, cardHeight);
+
+        previousRowsScrollTop = rows.scrollTop;
+        lastRowsBubbleAt = now;
 
         updateTopFormCollapseByScroll();
         collapseExpandedWhenOutOfView();
