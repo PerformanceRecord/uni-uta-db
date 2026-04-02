@@ -11,6 +11,20 @@
 - `.github/workflows/sync-songs-to-r2.yml`: GAS -> R2 定期同期
 - `scripts/sync_songs_to_r2.sh`: 同期用スクリプト
 - `index.html`: 楽曲検索UI
+- `tests/songsApi.test.js`: フロント用ユニットテスト（Vitest）
+- `.github/workflows/pr-test.yml`: PR時の自動テスト
+
+
+### PR時の自動テスト（新規）
+
+このリポジトリには、`pull_request` を契機に `npm test` を実行するワークフロー（`.github/workflows/pr-test.yml`）を追加しています。
+
+ローカル実行手順:
+
+```bash
+npm install
+npm test
+```
 
 ---
 
