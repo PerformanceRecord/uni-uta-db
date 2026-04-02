@@ -363,11 +363,13 @@ function headersToObject(headers) {
     }
 
 
-    function createScrollBubbles(mode = 'normal') {
+    function createScrollBubbles(mode = 'normal', intensity = 1) {
       if (!scrollBubbles) return;
-      if (scrollBubbles.childElementCount > 0) return;
       const burst = mode === 'burst';
-      const bubbleCount = burst ? 6 : 2;
+      const normalizedIntensity = Math.max(1, Number.isFinite(intensity) ? intensity : 1);
+      const bubbleCount = burst
+        ? Math.max(1, Math.round(normalizedIntensity * 3))
+        : Math.max(1, Math.round(normalizedIntensity));
       for (let i = 0; i < bubbleCount; i += 1) {
         const bubble = document.createElement('span');
         bubble.className = 'scroll-bubble';
@@ -375,12 +377,12 @@ function headersToObject(headers) {
         bubble.style.left = `${6 + Math.random() * 88}%`;
         bubble.style.width = `${size}px`;
         bubble.style.height = `${size}px`;
-        bubble.style.animationDelay = `${i * 0.08}s`;
+        bubble.style.animationDelay = `${i * 0.04}s`;
         bubble.style.animationDuration = burst
-          ? `${2.2 + Math.random() * 0.9}s`
-          : `${2.6 + Math.random() * 1.4}s`;
+          ? `${2.0 + Math.random() * 0.9}s`
+          : `${2.4 + Math.random() * 1.4}s`;
         scrollBubbles.appendChild(bubble);
-        window.setTimeout(() => bubble.remove(), 5200);
+        window.setTimeout(() => bubble.remove(), 5000);
       }
     }
 
@@ -1006,10 +1008,9 @@ function headersToObject(headers) {
         const deltaRows = Math.abs(rows.scrollTop - previousRowsScrollTop) / Math.max(1, cardHeight);
         previousRowsScrollTop = rows.scrollTop;
 
-        if (deltaRows >= 10) {
-          createScrollBubbles('burst');
-        } else {
-          maybeBubble();
+        if (deltaRows >= 1) {
+          const mode = deltaRows >= 10 ? 'burst' : 'normal';
+          createScrollBubbles(mode, deltaRows);
         }
 
         updateTopFormCollapseByScroll();

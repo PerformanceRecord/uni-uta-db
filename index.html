@@ -95,27 +95,31 @@
       pointer-events: none;
       z-index: 0;
       background-repeat: repeat;
-      opacity: 0.32;
       will-change: background-position;
     }
 
     body::before {
       background-image:
-        radial-gradient(circle at 20% 90%, rgb(255 255 255 / 45%) 0 3px, transparent 4px),
-        radial-gradient(circle at 60% 95%, rgb(255 255 255 / 35%) 0 2px, transparent 3px),
-        radial-gradient(circle at 85% 88%, rgb(255 255 255 / 40%) 0 2.5px, transparent 3.5px);
-      background-size: 220px 320px;
-      animation: bubble-rise 17s linear infinite;
+        radial-gradient(circle at 20% 90%, rgb(255 255 255 / 58%) 0 4px, transparent 5px),
+        radial-gradient(circle at 60% 95%, rgb(255 255 255 / 50%) 0 3px, transparent 4px),
+        radial-gradient(circle at 85% 88%, rgb(255 255 255 / 52%) 0 3.5px, transparent 4.5px),
+        radial-gradient(circle at 35% 92%, rgb(255 255 255 / 48%) 0 2.8px, transparent 3.8px),
+        radial-gradient(circle at 72% 90%, rgb(255 255 255 / 46%) 0 2.6px, transparent 3.6px);
+      background-size: 180px 260px;
+      opacity: 0.52;
+      animation: bubble-rise 12s linear infinite;
     }
 
     body::after {
       background-image:
-        radial-gradient(circle at 10% 96%, rgb(255 255 255 / 30%) 0 1.5px, transparent 2.5px),
-        radial-gradient(circle at 42% 92%, rgb(255 255 255 / 38%) 0 2px, transparent 3px),
-        radial-gradient(circle at 76% 94%, rgb(255 255 255 / 28%) 0 1.8px, transparent 2.8px);
-      background-size: 180px 280px;
-      opacity: 0.24;
-      animation: bubble-rise 24s linear infinite reverse;
+        radial-gradient(circle at 10% 96%, rgb(255 255 255 / 46%) 0 2px, transparent 3px),
+        radial-gradient(circle at 42% 92%, rgb(255 255 255 / 54%) 0 2.6px, transparent 3.6px),
+        radial-gradient(circle at 76% 94%, rgb(255 255 255 / 44%) 0 2.2px, transparent 3.2px),
+        radial-gradient(circle at 24% 90%, rgb(255 255 255 / 40%) 0 1.8px, transparent 2.8px),
+        radial-gradient(circle at 88% 92%, rgb(255 255 255 / 42%) 0 1.8px, transparent 2.8px);
+      background-size: 150px 220px;
+      opacity: 0.4;
+      animation: bubble-rise 16s linear infinite reverse;
     }
 
     @keyframes bubble-rise {
@@ -1120,7 +1124,7 @@
       bottom: -24px;
       border-radius: 50%;
       background: radial-gradient(circle at 35% 35%, rgb(255 255 255 / 85%), rgb(255 255 255 / 20%));
-      animation: pop-bubble 2.8s ease-out forwards;
+      animation: pop-bubble 2.6s ease-out forwards;
       opacity: 0;
     }
 
