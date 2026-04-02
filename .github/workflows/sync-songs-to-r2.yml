@@ -1,4 +1,4 @@
-name: Sync songs.json to Cloudflare R2
+name: songs.json 同期（サーバーアップロード）
 
 on:
   workflow_dispatch:
@@ -57,7 +57,7 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Sync songs.json to R2
+      - name: songs.json をサーバーへアップロード
         env:
           GAS_SONGS_API_URL: ${{ secrets.GAS_SONGS_API_URL || 'https://script.google.com/macros/s/AKfycbzU9lD1qRGocSkZvZJmh6FTw75XBnLMXgRIAyEDBuwqIG_whykcxbjjrhuk6K789ciS/exec?api=songs' }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}

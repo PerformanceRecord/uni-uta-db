@@ -6,7 +6,7 @@ import { load } from './data/songsApi.js';
 
 const CACHE_PREFIX = 'songs-cache-v3';
 const DATA_CACHE_KEY = 'dataset';
-const DATA_REFRESH_TTL_MS = 6 * 60 * 60 * 1000;
+const DATA_REFRESH_TTL_MS = 150 * 60 * 1000;
 const MY_DANMAKU_CACHE_KEY = 'my-danmaku-cache-v1';
 const MY_DANMAKU_CACHE_MS = 15 * 60 * 1000;
 const SWIPE_HINT_INTERVAL_MS = 3 * 60 * 1000;
