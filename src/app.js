@@ -9,6 +9,7 @@ const DATA_CACHE_KEY = 'dataset';
 const DATA_REFRESH_TTL_MS = 150 * 60 * 1000;
 const MY_DANMAKU_CACHE_KEY = 'my-danmaku-cache-v1';
 const MY_DANMAKU_CACHE_MS = 15 * 60 * 1000;
+const DEFAULT_MY_DANMAKU_LABEL = 'カスタム弾幕';
 const SWIPE_HINT_INTERVAL_MS = 3 * 60 * 1000;
 const MAX_ERROR_BODY_CHARS = 4000;
 const ENABLE_ERROR_LOG_UI = true;
@@ -575,21 +576,47 @@ function headersToObject(headers) {
       return `🍣🧡${safeEmoji}🍣🧡${safeEmoji}🍣🧡${safeEmoji}👏`;
     }
 
+    function buildMyDanmakuPreview(emoji) {
+      const safeEmoji = normalizeMyEmoji(emoji);
+      return `🍣🧡${safeEmoji}`;
+    }
+
+    function previewDanmakuLabelFromText(text) {
+      const graphemes = splitGraphemes(String(text || '').trim());
+      return graphemes.slice(0, 3).join('');
+    }
+
+    function updateMyDanmakuOptionLabel(inputValue = '') {
+      const option = document.querySelector('#danmakuType option[value="my"]');
+      if (!option) return;
+
+      const typed = String(inputValue || '').trim();
+      if (typed) {
+        option.textContent = buildMyDanmakuPreview(typed);
+        return;
+      }
+
+      const saved = state.myDanmaku || loadMyDanmakuCache();
+      option.textContent = saved
+        ? previewDanmakuLabelFromText(saved)
+        : DEFAULT_MY_DANMAKU_LABEL;
+    }
+
     function saveMyDanmakuCache(text) {
       const entry = { value: text, expiresAt: Date.now() + MY_DANMAKU_CACHE_MS };
       state.myDanmaku = text;
       try {
-        sessionStorage.setItem(MY_DANMAKU_CACHE_KEY, JSON.stringify(entry));
+        localStorage.setItem(MY_DANMAKU_CACHE_KEY, JSON.stringify(entry));
       } catch (_) {}
     }
 
     function loadMyDanmakuCache() {
       try {
-        const raw = sessionStorage.getItem(MY_DANMAKU_CACHE_KEY);
+        const raw = localStorage.getItem(MY_DANMAKU_CACHE_KEY);
         if (!raw) return '';
         const entry = JSON.parse(raw);
         if (!entry?.value || Date.now() > Number(entry.expiresAt || 0)) {
-          sessionStorage.removeItem(MY_DANMAKU_CACHE_KEY);
+          localStorage.removeItem(MY_DANMAKU_CACHE_KEY);
           return '';
         }
         return String(entry.value);
@@ -985,23 +1012,40 @@ function headersToObject(headers) {
       byId('copyDanmaku').addEventListener('click', copyDanmaku);
       byId('copyMemo')?.addEventListener('click', copyMemo);
       byId('pasteMemo')?.addEventListener('click', pasteMemo);
+      byId('myEmoji')?.addEventListener('input', (e) => {
+        updateMyDanmakuOptionLabel(e.target.value);
+      });
       if (ENABLE_ERROR_LOG_UI) {
         byId('copyErrorLog').addEventListener('click', copyErrorLog);
       }
 
-      byId('saveMyDanmaku').addEventListener('click', () => {
+      byId('saveMyDanmaku').addEventListener('click', async () => {
         const emojiInput = byId('myEmoji');
-        const safeEmoji = normalizeMyEmoji(emojiInput.value);
+        const rawEmoji = String(emojiInput.value || '').trim();
+
+        if (!rawEmoji) {
+          updateMyDanmakuOptionLabel('');
+          showToast('絵文字を入力してください');
+          return;
+        }
+
+        const safeEmoji = normalizeMyEmoji(rawEmoji);
         emojiInput.value = safeEmoji;
+
         const text = buildMyDanmaku(safeEmoji);
         saveMyDanmakuCache(text);
-        byId('danmakuType').value = 'my';
+        updateMyDanmakuOptionLabel('');
+
         const select = byId('danmakuType');
+        select.value = 'my';
         select.classList.remove('roll-highlight');
         void select.offsetWidth;
         select.classList.add('roll-highlight');
+
+        const copied = await copyTextToClipboard(text);
+
         setSwipeCard(0);
-        showToast('弾幕を作成しました');
+        showToast(copied ? '弾幕を作成してコピーしました' : '弾幕を作成しました');
 
       });
 
@@ -1133,6 +1177,7 @@ export function initializeApp() {
     byId('sortOrder').value = state.sortOrder;
     state.sortMode = `${state.sortField}-${state.sortOrder}`;
     state.myDanmaku = loadMyDanmakuCache();
+    updateMyDanmakuOptionLabel(byId('myEmoji')?.value || '');
     if (!state.myDanmaku) triggerSwipeHint();
     if (!swipeHintIntervalId) {
       swipeHintIntervalId = window.setInterval(() => {
