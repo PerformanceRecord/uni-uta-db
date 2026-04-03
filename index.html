@@ -363,29 +363,31 @@
     }
 
     .install-help-popover {
-      position: absolute;
-      z-index: 5;
-      top: calc(var(--control-height) + var(--space-2));
-      left: var(--space-2);
-      width: min(92%, 320px);
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      padding: var(--space-4);
+      background: rgb(15 23 42 / 38%);
     }
 
     .install-help-popover-inner {
-      border: 1px solid var(--line);
+      width: min(92vw, 360px);
+      border: none;
       border-radius: var(--radius-sm);
-      background: #fff;
-      padding: var(--space-2);
-      box-shadow: 0 8px 18px rgb(15 23 42 / 22%);
+      background: rgb(255 255 255 / 88%);
+      padding: var(--space-3);
+      box-shadow: 0 10px 24px rgb(15 23 42 / 24%);
       display: grid;
       gap: var(--space-2);
     }
 
-
-
     .install-help-popover.ios-inline {
-      position: static;
-      width: 100%;
-      margin: 0 0 var(--space-2) 0;
+      position: fixed;
+      inset: 0;
+      width: auto;
+      margin: 0;
       max-width: none;
     }
     .install-help-popover-inner p {
