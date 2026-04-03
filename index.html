@@ -353,30 +353,51 @@
       min-width: 0;
     }
 
-    .install-info-button {
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      z-index: 3;
-      width: 30px;
-      height: 30px;
-      min-height: 30px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: color-mix(in srgb, var(--surface-2) 92%, white 8%);
-      color: var(--muted);
-      font-weight: 700;
-      font-size: 14px;
-      line-height: 1;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
+    .status-shell[role="button"] {
+      cursor: pointer;
     }
 
-    .install-info-button:focus-visible {
+    .status-shell[role="button"]:focus-visible {
       outline: 2px solid var(--focus);
       outline-offset: 2px;
+    }
+
+    .install-help-popover {
+      position: absolute;
+      z-index: 5;
+      top: calc(var(--control-height) + var(--space-2));
+      left: var(--space-2);
+      width: min(92%, 320px);
+    }
+
+    .install-help-popover-inner {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, var(--surface) 94%, white 6%);
+      padding: var(--space-2);
+      box-shadow: 0 8px 18px rgb(15 23 42 / 22%);
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .install-help-popover-inner p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .install-help-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    .install-help-actions button {
+      min-height: 30px;
+      padding: 0 var(--space-2);
+      font-size: 12px;
     }
 
     .top-panel[aria-label="メモカード"] {
@@ -747,7 +768,6 @@
         bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
       }
       .top-summary { grid-template-columns: 1fr; }
-      .install-info-button { display: inline-flex; }
       .top-advanced { grid-template-columns: 1fr; gap: var(--space-2); }
       .sort-row { grid-template-columns: auto auto; }
       .sort-row button { min-width: 96px; }
@@ -779,8 +799,6 @@
     }
 
     @media (min-width: 861px) {
-      .install-info-button { display: none; }
-
       .top-fold-btn,
       .top-expand-btn {
         display: none !important;
@@ -1173,17 +1191,19 @@
       <div class="top-swipe-wrap" id="topSwipeWrap">
         <div class="top-swipe-track" id="topSwipeTrack">
           <section class="top-panel" aria-label="絞り込みカード">
-            <button
-              id="installInfoButton"
-              class="install-info-button"
-              type="button"
-              aria-label="ホーム画面に追加"
-              title="ホーム画面に追加"
-              hidden
-            >i</button>
+            <div id="installHelpPopover" class="install-help-popover" role="dialog" aria-modal="false" aria-labelledby="installHelpTitle" aria-describedby="installHelpBody" hidden>
+              <div class="install-help-popover-inner">
+                <strong id="installHelpTitle">ホーム画面に追加</strong>
+                <p id="installHelpBody"></p>
+                <div class="install-help-actions">
+                  <button id="installHelpAction" type="button">追加する</button>
+                  <button id="installHelpClose" type="button">閉じる</button>
+                </div>
+              </div>
+            </div>
             <div class="top-summary">
               <div class="summary-box">
-                <span class="status-shell" id="statusShell" data-state="loading">
+                <span class="status-shell" id="statusShell" data-state="loading" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false" aria-controls="installHelpPopover">
                   <span class="status-dot" aria-hidden="true"></span>
                   <span class="status" id="status"></span>
                 </span>
