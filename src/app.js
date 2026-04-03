@@ -85,7 +85,7 @@ function setupInstallHelpPopover() {
       installHelpBody.textContent = '共有ボタン(⍐)→その他からホーム画面にアプリを追加できます';
       installHelpAction.hidden = true;
     } else {
-      installHelpBody.textContent = 'ブラウザのメニューからホーム画面に追加してください';
+      installHelpBody.textContent = 'URL横の共有ボタン→その他からホーム画面にアプリを追加できます！';
       installHelpAction.hidden = true;
     }
 
