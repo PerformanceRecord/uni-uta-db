@@ -82,13 +82,14 @@ function setupInstallHelpPopover() {
       installHelpAction.hidden = false;
       installHelpAction.disabled = false;
     } else if (onIosSafari) {
-      installHelpBody.textContent = '共有メニューから「ホーム画面に追加」を選んでください';
+      installHelpBody.textContent = '共有ボタン(⍐)→その他からホーム画面にアプリを追加できます';
       installHelpAction.hidden = true;
     } else {
       installHelpBody.textContent = 'ブラウザのメニューからホーム画面に追加してください';
       installHelpAction.hidden = true;
     }
 
+    installHelpPopover.classList.toggle('ios-inline', onIosSafari);
     installHelpPopover.hidden = false;
     statusShell.setAttribute('aria-expanded', 'true');
   };
