@@ -365,11 +365,15 @@
     .install-help-popover {
       position: fixed;
       inset: 0;
-      z-index: 40;
+      z-index: 120;
       display: grid;
       place-items: center;
       padding: var(--space-4);
       background: rgb(15 23 42 / 38%);
+    }
+
+    .install-help-popover[hidden] {
+      display: none;
     }
 
     .install-help-popover-inner {
@@ -1207,16 +1211,6 @@
       <div class="top-swipe-wrap" id="topSwipeWrap">
         <div class="top-swipe-track" id="topSwipeTrack">
           <section class="top-panel" aria-label="絞り込みカード">
-            <div id="installHelpPopover" class="install-help-popover" role="dialog" aria-modal="false" aria-labelledby="installHelpTitle" aria-describedby="installHelpBody" hidden>
-              <div class="install-help-popover-inner">
-                <strong id="installHelpTitle">ホーム画面に追加</strong>
-                <p id="installHelpBody"></p>
-                <div class="install-help-actions">
-                  <button id="installHelpAction" type="button">追加する</button>
-                  <button id="installHelpClose" type="button">閉じる</button>
-                </div>
-              </div>
-            </div>
             <div class="top-summary">
               <div class="summary-box">
                 <span class="status-shell" id="statusShell" data-state="loading" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false" aria-controls="installHelpPopover">
@@ -1325,6 +1319,17 @@
 
     </section>
   </main>
+
+  <div id="installHelpPopover" class="install-help-popover" role="dialog" aria-modal="false" aria-labelledby="installHelpTitle" aria-describedby="installHelpBody" hidden>
+    <div class="install-help-popover-inner">
+      <strong id="installHelpTitle">ホーム画面に追加</strong>
+      <p id="installHelpBody"></p>
+      <div class="install-help-actions">
+        <button id="installHelpAction" type="button">追加する</button>
+        <button id="installHelpClose" type="button">閉じる</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="toast" aria-live="polite" role="status"></div>
 
