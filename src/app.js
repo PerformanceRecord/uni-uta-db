@@ -24,12 +24,81 @@ const toast = byId('toast');
 const errorLogWrap = byId('errorLogWrap');
 const errorLog = byId('errorLog');
 const scrollBubbles = byId('scrollBubbles');
+const installInfoButton = byId('installInfoButton');
 
 let latestErrorLogText = '';
 let toastTimer = null;
 let sourceItemsCache = [];
 let sourceTotalCache = 0;
 let hasSourceItemsCache = false;
+let deferredInstallPrompt = null;
+
+function isIosSafari() {
+  const ua = window.navigator.userAgent || '';
+  const isAppleMobile = /iPhone|iPad|iPod/i.test(ua);
+  const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
+  return isAppleMobile && isSafari;
+}
+
+function isStandaloneMode() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 860px)').matches;
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in window.navigator)) return;
+  window.navigator.serviceWorker.register('./sw.js').catch((err) => {
+    console.warn('service-worker-register-failed', err);
+  });
+}
+
+function updateInstallInfoButtonVisibility() {
+  if (!installInfoButton) return;
+  const shouldShow = isMobileViewport() && !isStandaloneMode() && (isIosSafari() || !!deferredInstallPrompt);
+  installInfoButton.hidden = !shouldShow;
+}
+
+function setupInstallInfoButton() {
+  if (!installInfoButton) return;
+
+  window.addEventListener('beforeinstallprompt', (evt) => {
+    evt.preventDefault();
+    deferredInstallPrompt = evt;
+    updateInstallInfoButtonVisibility();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    updateInstallInfoButtonVisibility();
+  });
+
+  window.matchMedia('(display-mode: standalone)').addEventListener('change', updateInstallInfoButtonVisibility);
+  window.matchMedia('(max-width: 860px)').addEventListener('change', updateInstallInfoButtonVisibility);
+
+  installInfoButton.addEventListener('click', async () => {
+    if (isStandaloneMode()) {
+      updateInstallInfoButtonVisibility();
+      return;
+    }
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice.catch(() => null);
+      deferredInstallPrompt = null;
+      updateInstallInfoButtonVisibility();
+      return;
+    }
+    if (isIosSafari()) {
+      showToast('共有メニューから「ホーム画面に追加」を選んでください', 2200);
+      return;
+    }
+    showToast('ブラウザのメニューからホーム画面に追加してください', 1800);
+  });
+
+  updateInstallInfoButtonVisibility();
+}
 
 function showToast(text, durationMs = 300) {
       if (!toast || !text) return;
@@ -1058,6 +1127,8 @@ function headersToObject(headers) {
     }
 
 export function initializeApp() {
+    registerServiceWorker();
+    setupInstallInfoButton();
     byId('sortField').value = state.sortField;
     byId('sortOrder').value = state.sortOrder;
     state.sortMode = `${state.sortField}-${state.sortOrder}`;

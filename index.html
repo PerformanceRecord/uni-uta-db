@@ -353,6 +353,32 @@
       min-width: 0;
     }
 
+    .install-info-button {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      z-index: 3;
+      width: 30px;
+      height: 30px;
+      min-height: 30px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface-2) 92%, white 8%);
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 14px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .install-info-button:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
     .top-panel[aria-label="メモカード"] {
       height: 100%;
     }
@@ -721,6 +747,7 @@
         bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
       }
       .top-summary { grid-template-columns: 1fr; }
+      .install-info-button { display: inline-flex; }
       .top-advanced { grid-template-columns: 1fr; gap: var(--space-2); }
       .sort-row { grid-template-columns: auto auto; }
       .sort-row button { min-width: 96px; }
@@ -752,6 +779,8 @@
     }
 
     @media (min-width: 861px) {
+      .install-info-button { display: none; }
+
       .top-fold-btn,
       .top-expand-btn {
         display: none !important;
@@ -1144,6 +1173,14 @@
       <div class="top-swipe-wrap" id="topSwipeWrap">
         <div class="top-swipe-track" id="topSwipeTrack">
           <section class="top-panel" aria-label="絞り込みカード">
+            <button
+              id="installInfoButton"
+              class="install-info-button"
+              type="button"
+              aria-label="ホーム画面に追加"
+              title="ホーム画面に追加"
+              hidden
+            >i</button>
             <div class="top-summary">
               <div class="summary-box">
                 <span class="status-shell" id="statusShell" data-state="loading">
