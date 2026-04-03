@@ -69,13 +69,15 @@ function setupInstallHelpPopover() {
   };
 
   const openPopover = () => {
-    if (isStandaloneMode()) return;
-
     isOpen = true;
     const isAndroidPromptReady = !!deferredInstallPrompt;
+    const isStandalone = isStandaloneMode();
     const onIosSafari = isIosSafari();
 
-    if (isAndroidPromptReady) {
+    if (isStandalone) {
+      installHelpBody.textContent = 'このアプリはすでにホーム画面から起動中です';
+      installHelpAction.hidden = true;
+    } else if (isAndroidPromptReady) {
       installHelpBody.textContent = 'このアプリをホーム画面に追加できます';
       installHelpAction.hidden = false;
       installHelpAction.disabled = false;
