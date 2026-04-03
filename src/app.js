@@ -1045,9 +1045,6 @@ function headersToObject(headers) {
       byId('copyDanmaku').addEventListener('click', copyDanmaku);
       byId('copyMemo')?.addEventListener('click', copyMemo);
       byId('pasteMemo')?.addEventListener('click', pasteMemo);
-      byId('myEmoji')?.addEventListener('input', (e) => {
-        updateMyDanmakuOptionLabel(e.target.value);
-      });
       if (ENABLE_ERROR_LOG_UI) {
         byId('copyErrorLog').addEventListener('click', copyErrorLog);
       }
@@ -1067,7 +1064,7 @@ function headersToObject(headers) {
 
         const text = buildMyDanmaku(safeEmoji);
         saveMyDanmakuCache(text);
-        updateMyDanmakuOptionLabel('');
+        updateMyDanmakuOptionLabel(safeEmoji);
 
         const select = byId('danmakuType');
         select.value = 'my';
@@ -1210,7 +1207,7 @@ export function initializeApp() {
     byId('sortOrder').value = state.sortOrder;
     state.sortMode = `${state.sortField}-${state.sortOrder}`;
     state.myDanmaku = loadMyDanmakuCache();
-    updateMyDanmakuOptionLabel(byId('myEmoji')?.value || '');
+    updateMyDanmakuOptionLabel('');
     if (!state.myDanmaku) triggerSwipeHint();
     if (!swipeHintIntervalId) {
       swipeHintIntervalId = window.setInterval(() => {
