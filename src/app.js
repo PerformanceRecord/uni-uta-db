@@ -25,7 +25,11 @@ const toast = byId('toast');
 const errorLogWrap = byId('errorLogWrap');
 const errorLog = byId('errorLog');
 const scrollBubbles = byId('scrollBubbles');
-const installInfoButton = byId('installInfoButton');
+const statusShell = byId('statusShell');
+const installHelpPopover = byId('installHelpPopover');
+const installHelpBody = byId('installHelpBody');
+const installHelpAction = byId('installHelpAction');
+const installHelpClose = byId('installHelpClose');
 
 let latestErrorLogText = '';
 let toastTimer = null;
@@ -45,10 +49,6 @@ function isStandaloneMode() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
-function isMobileViewport() {
-  return window.matchMedia('(max-width: 860px)').matches;
-}
-
 function registerServiceWorker() {
   if (!('serviceWorker' in window.navigator)) return;
   window.navigator.serviceWorker.register('./sw.js').catch((err) => {
@@ -56,49 +56,91 @@ function registerServiceWorker() {
   });
 }
 
-function updateInstallInfoButtonVisibility() {
-  if (!installInfoButton) return;
-  const shouldShow = isMobileViewport() && !isStandaloneMode() && (isIosSafari() || !!deferredInstallPrompt);
-  installInfoButton.hidden = !shouldShow;
-}
+function setupInstallHelpPopover() {
+  if (!statusShell || !installHelpPopover || !installHelpBody || !installHelpAction || !installHelpClose) return;
 
-function setupInstallInfoButton() {
-  if (!installInfoButton) return;
+  let isOpen = false;
+
+  const closePopover = () => {
+    if (!isOpen) return;
+    isOpen = false;
+    installHelpPopover.hidden = true;
+    statusShell.setAttribute('aria-expanded', 'false');
+  };
+
+  const openPopover = () => {
+    if (isStandaloneMode()) return;
+
+    isOpen = true;
+    const isAndroidPromptReady = !!deferredInstallPrompt;
+    const onIosSafari = isIosSafari();
+
+    if (isAndroidPromptReady) {
+      installHelpBody.textContent = 'このアプリをホーム画面に追加できます';
+      installHelpAction.hidden = false;
+      installHelpAction.disabled = false;
+    } else if (onIosSafari) {
+      installHelpBody.textContent = '共有メニューから「ホーム画面に追加」を選んでください';
+      installHelpAction.hidden = true;
+    } else {
+      installHelpBody.textContent = 'ブラウザのメニューからホーム画面に追加してください';
+      installHelpAction.hidden = true;
+    }
+
+    installHelpPopover.hidden = false;
+    statusShell.setAttribute('aria-expanded', 'true');
+  };
+
+  const togglePopover = () => {
+    if (isOpen) closePopover();
+    else openPopover();
+  };
 
   window.addEventListener('beforeinstallprompt', (evt) => {
     evt.preventDefault();
     deferredInstallPrompt = evt;
-    updateInstallInfoButtonVisibility();
   });
 
   window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
-    updateInstallInfoButtonVisibility();
+    closePopover();
   });
 
-  window.matchMedia('(display-mode: standalone)').addEventListener('change', updateInstallInfoButtonVisibility);
-  window.matchMedia('(max-width: 860px)').addEventListener('change', updateInstallInfoButtonVisibility);
+  window.matchMedia('(display-mode: standalone)').addEventListener('change', () => {
+    if (isStandaloneMode()) closePopover();
+  });
+  window.matchMedia('(max-width: 860px)').addEventListener('change', () => {
+    closePopover();
+  });
 
-  installInfoButton.addEventListener('click', async () => {
-    if (isStandaloneMode()) {
-      updateInstallInfoButtonVisibility();
-      return;
-    }
-    if (deferredInstallPrompt) {
+  statusShell.addEventListener('click', togglePopover);
+  statusShell.addEventListener('keydown', (evt) => {
+    if (evt.key !== 'Enter' && evt.key !== ' ') return;
+    evt.preventDefault();
+    togglePopover();
+  });
+
+  installHelpClose.addEventListener('click', closePopover);
+  installHelpAction.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    try {
       deferredInstallPrompt.prompt();
       await deferredInstallPrompt.userChoice.catch(() => null);
+    } finally {
       deferredInstallPrompt = null;
-      updateInstallInfoButtonVisibility();
-      return;
+      closePopover();
     }
-    if (isIosSafari()) {
-      showToast('共有メニューから「ホーム画面に追加」を選んでください', 2200);
-      return;
-    }
-    showToast('ブラウザのメニューからホーム画面に追加してください', 1800);
   });
 
-  updateInstallInfoButtonVisibility();
+  document.addEventListener('click', (evt) => {
+    if (!isOpen) return;
+    if (installHelpPopover.contains(evt.target) || statusShell.contains(evt.target)) return;
+    closePopover();
+  });
+
+  document.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Escape') closePopover();
+  });
 }
 
 function showToast(text, durationMs = 300) {
@@ -1172,7 +1214,7 @@ function headersToObject(headers) {
 
 export function initializeApp() {
     registerServiceWorker();
-    setupInstallInfoButton();
+    setupInstallHelpPopover();
     byId('sortField').value = state.sortField;
     byId('sortOrder').value = state.sortOrder;
     state.sortMode = `${state.sortField}-${state.sortOrder}`;
