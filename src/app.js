@@ -623,11 +623,6 @@ function headersToObject(headers) {
       return `🍣🧡${safeEmoji}`;
     }
 
-    function previewDanmakuLabelFromText(text) {
-      const graphemes = splitGraphemes(String(text || '').trim());
-      return graphemes.slice(0, 3).join('');
-    }
-
     function updateMyDanmakuOptionLabel(inputValue = '') {
       const option = document.querySelector('#danmakuType option[value="my"]');
       if (!option) return;
@@ -637,11 +632,7 @@ function headersToObject(headers) {
         option.textContent = buildMyDanmakuPreview(typed);
         return;
       }
-
-      const saved = state.myDanmaku || loadMyDanmakuCache();
-      option.textContent = saved
-        ? previewDanmakuLabelFromText(saved)
-        : DEFAULT_MY_DANMAKU_LABEL;
+      option.textContent = DEFAULT_MY_DANMAKU_LABEL;
     }
 
     function saveMyDanmakuCache(text) {
