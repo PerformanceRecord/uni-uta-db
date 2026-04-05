@@ -49,6 +49,10 @@ function isStandaloneMode() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
+function isDesktopMotionOffMode() {
+  return window.matchMedia('(min-width: 1024px) and (pointer: fine)').matches;
+}
+
 function registerServiceWorker() {
   if (!('serviceWorker' in window.navigator)) return;
   window.navigator.serviceWorker.register('./sw.js').catch((err) => {
@@ -480,6 +484,7 @@ function headersToObject(headers) {
 
     function createScrollBubbles(mode = 'normal', intensity = 1) {
       if (!scrollBubbles) return;
+      if (isDesktopMotionOffMode()) return;
       const burst = mode === 'burst';
       const normalizedIntensity = Math.max(1, Number.isFinite(intensity) ? intensity : 1);
       const cappedIntensity = Math.min(40, normalizedIntensity);

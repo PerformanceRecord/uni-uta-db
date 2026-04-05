@@ -260,6 +260,14 @@
       }
     }
 
+    @media (min-width: 1024px) and (pointer: fine) {
+      body::before,
+      body::after,
+      .bottom-swipe-track.hinting {
+        animation: none !important;
+      }
+    }
+
     label { display: grid; gap: var(--space-1); font-size: 13px; color: var(--muted); }
 
     .card :is(input, select) {
