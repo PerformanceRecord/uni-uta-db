@@ -483,15 +483,22 @@ function headersToObject(headers) {
     }
 
 
+    const MAX_SCROLL_BUBBLES = 90;
+
     function createScrollBubbles(mode = 'normal', intensity = 1) {
       if (!scrollBubbles) return;
       if (isDesktopMotionOffMode()) return;
       const burst = mode === 'burst';
       const normalizedIntensity = Math.max(1, Number.isFinite(intensity) ? intensity : 1);
       const cappedIntensity = Math.min(40, normalizedIntensity);
-      const bubbleCount = burst
+      const requestedCount = burst
         ? Math.max(5, Math.round(cappedIntensity * 3))
         : Math.max(5, Math.round(cappedIntensity));
+      const activeCount = scrollBubbles.childElementCount;
+      const availableSlots = Math.max(0, MAX_SCROLL_BUBBLES - activeCount);
+      const bubbleCount = Math.min(requestedCount, availableSlots);
+      if (bubbleCount <= 0) return;
+      const fragment = document.createDocumentFragment();
       for (let i = 0; i < bubbleCount; i += 1) {
         const bubble = document.createElement('span');
         bubble.className = 'scroll-bubble';
@@ -503,9 +510,10 @@ function headersToObject(headers) {
         bubble.style.animationDuration = burst
           ? `${2.0 + Math.random() * 0.9}s`
           : `${2.4 + Math.random() * 1.4}s`;
-        scrollBubbles.appendChild(bubble);
+        fragment.appendChild(bubble);
         window.setTimeout(() => bubble.remove(), 5000);
       }
+      scrollBubbles.appendChild(fragment);
     }
 
     function collapseExpandedWhenOutOfView() {
@@ -1182,11 +1190,15 @@ function setupTapFocusRing() {
         syncTopPanelSize();
       };
 
+      const MIN_BUBBLE_INTERVAL_MS = 48;
+      const MIN_SCROLL_DELTA_FOR_BUBBLE = 3;
       let lastBubbleAt = 0;
       let lastWindowScrollTop = window.scrollY;
       let lastWindowBubbleAt = Date.now();
       let previousRowsScrollTop = 0;
       let lastRowsBubbleAt = Date.now();
+      let cachedCardHeight = 44;
+      let cachedCardHeightAt = 0;
 
       const computeBubbleIntensity = (deltaPx, elapsedMs, cardHeight) => {
         const normalizedDistance = deltaPx / Math.max(1, cardHeight);
@@ -1194,9 +1206,19 @@ function setupTapFocusRing() {
         return normalizedDistance * (1 + velocityBoost);
       };
 
+      const getCardHeight = (now) => {
+        if (now - cachedCardHeightAt <= 240) return cachedCardHeight;
+        const cardSample = rows.querySelector('.song-card');
+        const rowGap = Number.parseFloat(window.getComputedStyle(rows).rowGap || '0') || 0;
+        cachedCardHeight = cardSample ? (cardSample.offsetHeight + rowGap) : 44;
+        cachedCardHeightAt = now;
+        return cachedCardHeight;
+      };
+
       const maybeBubble = (deltaPx, elapsedMs, cardHeight) => {
+        if (deltaPx < MIN_SCROLL_DELTA_FOR_BUBBLE) return;
         const now = Date.now();
-        if (now - lastBubbleAt < 10) return;
+        if (now - lastBubbleAt < MIN_BUBBLE_INTERVAL_MS) return;
         const intensity = computeBubbleIntensity(deltaPx, elapsedMs, cardHeight);
         if (intensity < 0.4) return;
         lastBubbleAt = now;
@@ -1211,9 +1233,7 @@ function setupTapFocusRing() {
         const now = Date.now();
         const deltaWindow = Math.abs(window.scrollY - lastWindowScrollTop);
         const elapsedWindow = Math.max(1, now - lastWindowBubbleAt);
-        const cardSample = rows.querySelector('.song-card');
-        const rowGap = Number.parseFloat(window.getComputedStyle(rows).rowGap || '0') || 0;
-        const cardHeight = cardSample ? (cardSample.offsetHeight + rowGap) : 44;
+        const cardHeight = getCardHeight(now);
 
         maybeBubble(deltaWindow, elapsedWindow, cardHeight);
         lastWindowScrollTop = window.scrollY;
@@ -1224,9 +1244,7 @@ function setupTapFocusRing() {
 
       rows.addEventListener('scroll', () => {
         const now = Date.now();
-        const cardSample = rows.querySelector('.song-card');
-        const rowGap = Number.parseFloat(window.getComputedStyle(rows).rowGap || '0') || 0;
-        const cardHeight = cardSample ? (cardSample.offsetHeight + rowGap) : 44;
+        const cardHeight = getCardHeight(now);
         const deltaPx = Math.abs(rows.scrollTop - previousRowsScrollTop);
         const elapsedRows = Math.max(1, now - lastRowsBubbleAt);
 
