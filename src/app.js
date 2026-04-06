@@ -13,6 +13,7 @@ const DEFAULT_MY_DANMAKU_LABEL = 'カスタム弾幕';
 const SWIPE_HINT_INTERVAL_MS = 3 * 60 * 1000;
 const MAX_ERROR_BODY_CHARS = 4000;
 const ENABLE_ERROR_LOG_UI = true;
+const TAP_FOCUS_SELECTOR = 'a[href], button, input:not([type="hidden"]), select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])';
 
 function songsCacheKey() {
   return `${CACHE_PREFIX}:${DATA_CACHE_KEY}`;
@@ -698,10 +699,55 @@ function headersToObject(headers) {
       return target?.parentElement || null;
     }
 
-    function isInteractiveTarget(target) {
-      const el = eventTargetElement(target);
-      return Boolean(el?.closest?.('a, button, input, select, textarea, [role="button"]'));
+function isInteractiveTarget(target) {
+  const el = eventTargetElement(target);
+  return Boolean(el?.closest?.('a, button, input, select, textarea, [role="button"]'));
+}
+
+let activeTapFocusEl = null;
+
+function clearTapFocusRing() {
+  if (!activeTapFocusEl) return;
+  activeTapFocusEl.classList.remove('tap-focus-ring');
+  activeTapFocusEl = null;
+}
+
+function setupTapFocusRing() {
+  let hasPointerDown = false;
+
+  document.addEventListener('pointerdown', (evt) => {
+    hasPointerDown = true;
+    const targetEl = eventTargetElement(evt.target);
+    if (!targetEl?.closest?.(TAP_FOCUS_SELECTOR)) {
+      clearTapFocusRing();
     }
+  }, true);
+
+  document.addEventListener('click', (evt) => {
+    if (!hasPointerDown) return;
+    hasPointerDown = false;
+
+    const targetEl = eventTargetElement(evt.target);
+    const ringTarget = targetEl?.closest?.(TAP_FOCUS_SELECTOR);
+    if (!ringTarget) return;
+
+    if (activeTapFocusEl && activeTapFocusEl !== ringTarget) {
+      activeTapFocusEl.classList.remove('tap-focus-ring');
+    }
+    activeTapFocusEl = ringTarget;
+    ringTarget.classList.add('tap-focus-ring');
+
+    if (typeof ringTarget.focus === 'function') {
+      ringTarget.focus({ preventScroll: true });
+    }
+  }, true);
+
+  document.addEventListener('keydown', (evt) => {
+    if (evt.key !== 'Tab') return;
+    hasPointerDown = false;
+    clearTapFocusRing();
+  }, true);
+}
 
     function urlsFromText(text) {
       if (!text) return [];
@@ -1210,6 +1256,7 @@ function headersToObject(headers) {
 
 export function initializeApp() {
     registerServiceWorker();
+    setupTapFocusRing();
     setupInstallHelpPopover();
     byId('sortField').value = state.sortField;
     byId('sortOrder').value = state.sortOrder;
