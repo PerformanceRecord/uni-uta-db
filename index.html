@@ -44,6 +44,8 @@
       --layout-side-padding: var(--space-4);
       --pc-fluid-width-enabled: 1; /* 1: PCでA案(フル幅寄せ) / 0: 従来の1080px上限 */
       --pc-content-max-width: 860px;
+      --ui-card-border: 0;
+      --ui-card-shadow: none;
     }
 
     * { box-sizing: border-box; }
@@ -144,6 +146,10 @@
       border: 1px solid var(--line);
       border-radius: var(--radius-md);
       padding: var(--space-3);
+    }
+    .ui-card {
+      border: var(--ui-card-border);
+      box-shadow: var(--ui-card-shadow);
     }
 
     h1 { margin: 0 0 var(--space-1); font-size: 21px; }
@@ -655,12 +661,6 @@
       margin-top: var(--space-2);
     }
 
-    .top-form,
-    .middle-form,
-    .bottom-form {
-      border: 0;
-    }
-
     .bottom-form {
       position: fixed;
       left: 0;
@@ -861,7 +861,6 @@
       min-height: 0;
       padding: 0;
       background: transparent;
-      border: 0;
       position: fixed;
       left: 0;
       transform: none;
@@ -873,7 +872,7 @@
     }
 
     .song-card {
-      border: 1px solid var(--line);
+      border: var(--ui-card-border);
       border-radius: var(--radius-sm);
       background: #e6ffff;
       padding: var(--space-2);
@@ -1214,7 +1213,7 @@
 <body>
   <div id="scrollBubbles" class="scroll-bubbles" aria-hidden="true"></div>
   <main class="container" id="songsPage">
-    <section class="card top-form" id="topForm">
+    <section class="card ui-card top-form" id="topForm">
       <div class="page-indicator top-indicator" id="topPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
       <div class="top-swipe-wrap" id="topSwipeWrap">
         <div class="top-swipe-track" id="topSwipeTrack">
@@ -1280,11 +1279,11 @@
       </div>
     </section>
 
-    <section class="card middle-form">
+    <section class="card ui-card middle-form">
       <div id="rows" class="song-cards"></div>
     </section>
 
-    <section class="card bottom-form">
+    <section class="card ui-card bottom-form">
       <div class="page-indicator bottom-indicator" id="bottomPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
       <div class="bottom-swipe-wrap" id="bottomSwipeWrap">
         <div class="bottom-swipe-track" id="bottomSwipeTrack">
