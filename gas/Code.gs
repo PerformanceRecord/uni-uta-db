@@ -77,7 +77,7 @@ function buildSongsPayload_() {
 
     const hasLive = !!liveUrl || !!liveYmd;
     const normalizedLiveDate = liveYmd ? formatYmd_(liveYmd) : '';
-    const kind = hasLive ? 'live' : (memoKind || 'other');
+    const kind = hasLive ? 'live' : (memoKind === 'short' ? 'short' : memoKind === 'cover' ? 'cover' : 'live');
 
     items.push({
       title,

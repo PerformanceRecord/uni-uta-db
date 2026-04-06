@@ -674,14 +674,14 @@ function headersToObject(headers) {
 
     function normalizeKind(kind) {
       const raw = String(kind || '').trim();
-      if (!raw) return 'other';
+      if (!raw) return 'live';
       const lowered = raw.toLowerCase();
       if (KIND_MAP[lowered]) return KIND_MAP[lowered];
       if (KIND_MAP[raw]) return KIND_MAP[raw];
       if (lowered.includes('short') || raw.includes('ショート')) return 'short';
       if (lowered.includes('cover') || raw.includes('歌ってみた') || raw.includes('歌みた')) return 'cover';
       if (lowered.includes('live') || lowered.includes('stream') || raw.includes('歌枠') || raw.includes('配信')) return 'live';
-      return 'other';
+      return 'live';
     }
 
     function kindLabel(kind) {
@@ -739,7 +739,7 @@ function headersToObject(headers) {
 
     function resolveSingingTag(text) {
       const raw = String(text || '').trim();
-      if (!raw) return { kind: 'other', label: '' };
+      if (!raw) return { kind: 'live', label: '' };
       const lowered = raw.toLowerCase();
 
       if (lowered.includes('short') || raw.includes('ショート')) {
@@ -754,7 +754,7 @@ function headersToObject(headers) {
         return { kind: 'live', label: '' };
       }
 
-      return { kind: 'other', label: '' };
+      return { kind: 'live', label: '' };
     }
 
     function kindForFilter(item) {
