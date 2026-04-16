@@ -31,6 +31,16 @@ function tagClassForLabel(label) {
   return '';
 }
 
+function cardClassForLabels(labels = []) {
+  for (const label of labels) {
+    const tagClass = tagClassForLabel(label);
+    if (tagClass === 'tag-utattemita') return 'song-card--utattemita';
+    if (tagClass === 'tag-short') return 'song-card--short';
+    if (tagClass === 'tag-utawaku') return 'song-card--utawaku';
+  }
+  return '';
+}
+
 export function linksForExpanded(item, deps = {}) {
   const { resolveSingingTag = () => ({ label: '' }), bestExternalUrl = () => '' } = deps;
   const rawTagText = String(item.singingTag || item.memo || '').trim();
@@ -128,6 +138,7 @@ export function render(items, totals = {}, deps = {}) {
     const detailLinks = linksForExpanded(item, { resolveSingingTag, bestExternalUrl });
     const rawTagText = detailLinks.singingTagLabel || String(item.singingTag || item.memo || '').trim();
     const tagLabels = splitSingingTags(rawTagText);
+    const cardKindClass = cardClassForLabels(tagLabels);
     const singingTagHtml = tagLabels.length
       ? tagLabels
         .map((label) => {
@@ -150,7 +161,8 @@ export function render(items, totals = {}, deps = {}) {
     const previewHtml = preview
       ? `<div class="song-preview-wrap"><a class="song-preview-card song-detail-link" href="${escapeHtml(encodeURI(detailLinks.detailUrl))}" target="_blank" rel="noopener noreferrer" title="${fallbackLinkLabel}"><img class="song-preview-image" src="${escapeHtml(preview.thumbnailUrl)}" alt="${escapeHtml(preview.type)}のサムネイル" loading="lazy" referrerpolicy="${escapeHtml(preview.referrerPolicy || 'no-referrer')}" data-fallback-thumbnail="${escapeHtml(preview.fallbackThumbnailUrl || '')}" /><p class="song-preview-label">${escapeHtml(preview.type)}</p></a></div>`
       : '';
-    return `<article class="${SONG_CARD_CLASS_NAMES}" data-id="${id}" tabindex="0"><div class="song-card-main"><div class="song-head"><div class="song-summary"><div class="song-title">${escapeHtml(item.title || '-')}</div><div class="song-artist">${escapeHtml(item.artist || '-')}</div></div><button class="icon-btn copy-text-btn" type="button" data-copy-kind="song-artist" title="楽曲名 / アーティスト名をコピー" aria-label="楽曲名 / アーティスト名をコピー">コピー</button></div><div class="song-details"><div class="song-meta"><div class="song-meta-top"><div>${singingTagHtml}</div><div class="song-meta-latest">Latest: ${latestDate}</div></div><div class="song-link-row">${fallbackLinkHtml}</div>${previewHtml}</div></div></div></article>`;
+    const cardClassName = cardKindClass ? `${SONG_CARD_CLASS_NAMES} ${cardKindClass}` : SONG_CARD_CLASS_NAMES;
+    return `<article class="${cardClassName}" data-id="${id}" tabindex="0"><div class="song-card-main"><div class="song-head"><div class="song-summary"><div class="song-title">${escapeHtml(item.title || '-')}</div><div class="song-artist">${escapeHtml(item.artist || '-')}</div></div><button class="icon-btn copy-text-btn" type="button" data-copy-kind="song-artist" title="楽曲名 / アーティスト名をコピー" aria-label="楽曲名 / アーティスト名をコピー">コピー</button></div><div class="song-details"><div class="song-meta"><div class="song-meta-top"><div>${singingTagHtml}</div><div class="song-meta-latest">Latest: ${latestDate}</div></div><div class="song-link-row">${fallbackLinkHtml}</div>${previewHtml}</div></div></div></article>`;
   }).join('');
 
   rows.innerHTML = '<div class="dummy-top-card">--- TOP ---</div>' + cardsHtml + '<div class="dummy-end-card">--- END --- <a href="https://lit.link/unisuke" target="_blank" rel="noopener noreferrer">https://lit.link/unisuke</a></div>';
