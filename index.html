@@ -275,9 +275,17 @@
       }
     }
 
-    @media (min-width: 1024px) and (pointer: fine) {
-      .bottom-swipe-track.hinting {
+    @media (pointer: fine) {
+      .status-shell,
+      .status-shell::before,
+      .status-dot,
+      body::before,
+      body::after,
+      .bottom-swipe-track.hinting,
+      .roll-highlight,
+      .scroll-bubble {
         animation: none !important;
+        transition: none;
       }
     }
 

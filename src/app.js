@@ -51,7 +51,7 @@ function isStandaloneMode() {
 }
 
 function isDesktopMotionOffMode() {
-  return window.matchMedia('(min-width: 1024px) and (pointer: fine)').matches;
+  return window.matchMedia('(pointer: fine)').matches;
 }
 
 function registerServiceWorker() {
@@ -477,9 +477,9 @@ function headersToObject(headers) {
       });
 
       setSwipeCard = setCard;
-      triggerSwipeHint = startHint;
+      triggerSwipeHint = isDesktopMotionOffMode() ? () => {} : startHint;
 
-      startHint();
+      if (!isDesktopMotionOffMode()) startHint();
     }
 
 
@@ -1282,7 +1282,7 @@ export function initializeApp() {
     state.myDanmaku = loadMyDanmakuCache();
     updateMyDanmakuOptionLabel('');
     if (!state.myDanmaku) triggerSwipeHint();
-    if (!swipeHintIntervalId) {
+    if (!swipeHintIntervalId && !isDesktopMotionOffMode()) {
       swipeHintIntervalId = window.setInterval(() => {
         if (!loadMyDanmakuCache()) triggerSwipeHint();
       }, SWIPE_HINT_INTERVAL_MS);
