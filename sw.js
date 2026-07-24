@@ -1,9 +1,9 @@
 const CACHE_PREFIX = 'uni-uta-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v6`;
+const CACHE_NAME = `${CACHE_PREFIX}v7`;
 const APP_SHELL = [
   './index.html',
-  './assets/styles.css?v=5',
-  './src/app.js?v=6',
+  './assets/styles.css?v=7',
+  './src/app.js?v=7',
   './src/data/songsApi.js',
   './src/domain/songCatalog.js',
   './src/features/danmaku.js',
