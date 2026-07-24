@@ -144,6 +144,7 @@ https://script.google.com/macros/s/AKfycbyR0J5IjXT7lZjDT7SAIkM4TW8SP1k0iNy3wW0Q2
 ワークフロー: `.github/workflows/sync-songs-to-r2.yml`
 
 - 手動実行: `workflow_dispatch`
+- 同期基盤更新時: `main`へのpush（ワークフロー、GAS、スナップショット生成・R2同期スクリプトの変更時のみ）
 - 定期実行: 毎日 JST 12:00（UTC 03:00）
 - 注記: GitHub Actions の cron は UTC 表記です。
 - 同じ内容の再アップロードは `dataVersion` 比較で省略します。
