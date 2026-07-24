@@ -20,12 +20,7 @@
   --focus: #00C2FF;
   --bg-scroll-darkness: 0;
   --bg-scroll-brightness: 0;
-  --scroll-top-offset: 0px;
   --dummy-end-card-height: 72px;
-  --dummy-top-card-height: 80px;
-  --dummy-top-card-height-fixed: auto;
-  --dummy-top-card-extra-expanded: 3px;
-  --dummy-top-card-extra-collapsed: 7px;
   --layout-side-padding: var(--space-4);
   --pc-fluid-width-enabled: 1; /* 1: PCでA案(フル幅寄せ) / 0: 従来の1080px上限 */
   --pc-content-max-width: 860px;
@@ -1167,18 +1162,6 @@ button.song-date-link {
   place-items: center;
 }
 
-.dummy-top-card {
-  border: 0;
-  border-radius: var(--radius-sm);
-  padding: var(--space-2);
-  min-height: calc(var(--dummy-top-card-height) + 1em);
-  text-align: center;
-  color: var(--muted);
-  font-size: 12px;
-  display: grid;
-  place-items: center;
-}
-
 .toast {
   position: fixed;
   left: 50%;
@@ -1224,7 +1207,6 @@ button.song-date-link {
   100% { transform: translateY(-70dvh) scale(1.18); opacity: 0; }
 }
 
-.mobile-brand,
 .song-mobile-meta,
 .copy-button-icon,
 .desktop-panel-heading,
@@ -1323,61 +1305,13 @@ button.song-date-link {
 
   .summary-box {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     min-height: 48px;
     padding: 4px;
     border: 0;
     border-radius: 13px;
     background: transparent;
-  }
-
-  .mobile-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    min-width: 0;
-  }
-
-  .mobile-brand-mark {
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    flex: 0 0 auto;
-    border: 1px solid rgb(237 117 66 / 36%);
-    border-radius: 50%;
-    background:
-      radial-gradient(circle at 32% 26%, rgb(255 255 255 / 92%) 0 9%, transparent 10%),
-      linear-gradient(145deg, #FFB373, #ED7542);
-    box-shadow:
-      0 5px 12px rgb(191 83 38 / 24%),
-      inset 0 0 0 3px rgb(255 255 255 / 28%);
-    color: #FFFFFF;
-    font-size: 17px;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .mobile-brand-copy {
-    display: grid;
-    gap: 0;
-    min-width: 0;
-    line-height: 1.05;
-  }
-
-  .mobile-brand-copy strong {
-    white-space: nowrap;
-    font-size: 13px;
-    letter-spacing: 0.02em;
-  }
-
-  .mobile-brand-copy small {
-    margin-top: 3px;
-    color: #7A6A5F;
-    font-size: 7px;
-    font-weight: 800;
-    letter-spacing: 0.13em;
   }
 
   .summary-box .status-shell {
@@ -1770,12 +1704,6 @@ button.song-date-link {
     box-shadow: 0 7px 18px rgb(15 23 42 / 18%);
   }
 
-  .dummy-top-card {
-    color: transparent;
-    font-size: 0;
-    pointer-events: none;
-  }
-
   .dummy-end-card {
     color: rgb(255 255 255 / 88%);
     font-size: 11px;
@@ -2143,7 +2071,6 @@ button.song-date-link {
     --desktop-rail-width: clamp(276px, 21vw, 310px);
     --control-height: 44px;
     --layout-side-padding: 16px;
-    --dummy-top-card-height-fixed: 0px;
   }
 
   body {
@@ -2248,52 +2175,6 @@ button.song-date-link {
     padding: 0;
     border: 0;
     background: transparent;
-  }
-
-  .mobile-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .mobile-brand-mark {
-    display: grid;
-    place-items: center;
-    width: 44px;
-    height: 44px;
-    flex: 0 0 auto;
-    border: 1px solid rgb(237 117 66 / 36%);
-    border-radius: 50%;
-    background:
-      radial-gradient(circle at 32% 26%, rgb(255 255 255 / 92%) 0 9%, transparent 10%),
-      linear-gradient(145deg, #FFB373, #ED7542);
-    box-shadow:
-      0 7px 16px rgb(191 83 38 / 24%),
-      inset 0 0 0 4px rgb(255 255 255 / 28%);
-    color: #FFFFFF;
-    font-size: 21px;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .mobile-brand-copy {
-    display: grid;
-    gap: 1px;
-    line-height: 1.05;
-  }
-
-  .mobile-brand-copy strong {
-    color: #17313F;
-    font-size: 17px;
-    letter-spacing: 0.02em;
-  }
-
-  .mobile-brand-copy small {
-    margin-top: 4px;
-    color: #806B5E;
-    font-size: 8px;
-    font-weight: 800;
-    letter-spacing: 0.15em;
   }
 
   .summary-box .status-shell {
@@ -2560,7 +2441,6 @@ button.song-date-link {
     padding: 2px 4px 8px 2px;
   }
 
-  .dummy-top-card,
   .dummy-end-card {
     display: none;
   }
@@ -2716,15 +2596,6 @@ button.song-date-link {
 }
 
 @media (max-width: 360px) {
-  .mobile-brand-copy small {
-    display: none;
-  }
-
-  .mobile-brand-mark {
-    width: 32px;
-    height: 32px;
-  }
-
   .summary-box {
     gap: 5px;
   }
