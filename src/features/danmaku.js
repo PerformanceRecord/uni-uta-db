@@ -1,3 +1,9 @@
+import {
+  readStorageItem,
+  removeStorageItem,
+  writeStorageItem,
+} from '../platform/storage.js';
+
 export const MY_DANMAKU_CACHE_KEY = 'my-danmaku-cache-v1';
 export const MY_DANMAKU_CACHE_MS = 15 * 60 * 1000;
 export const DEFAULT_MY_DANMAKU_LABEL = 'カスタム弾幕';
@@ -74,12 +80,7 @@ export function saveMyDanmakuCache(
     expiresAt: now() + ttlMs,
   };
 
-  try {
-    storage.setItem(cacheKey, JSON.stringify(entry));
-    return true;
-  } catch (_) {
-    return false;
-  }
+  return writeStorageItem(cacheKey, JSON.stringify(entry), storage);
 }
 
 export function loadMyDanmakuCache(
@@ -89,27 +90,25 @@ export function loadMyDanmakuCache(
     now = Date.now,
   } = {},
 ) {
-  try {
-    const raw = storage.getItem(cacheKey);
-    if (!raw) return '';
+  const raw = readStorageItem(cacheKey, storage);
+  if (!raw) return '';
 
+  try {
     const entry = JSON.parse(raw);
     const expiresAt = Number(entry?.expiresAt);
     if (
       !entry?.value
       || !Number.isFinite(expiresAt)
       || expiresAt <= 0
-      || now() > expiresAt
+      || now() >= expiresAt
     ) {
-      storage.removeItem(cacheKey);
+      removeStorageItem(cacheKey, storage);
       return '';
     }
 
     return String(entry.value);
   } catch (_) {
-    try {
-      storage?.removeItem?.(cacheKey);
-    } catch (_) {}
+    removeStorageItem(cacheKey, storage);
     return '';
   }
 }
