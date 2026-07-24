@@ -27,6 +27,7 @@ import {
   copyTextToClipboard,
   insertTextIntoMemo,
 } from './platform/clipboard.js';
+import { readStorageItem } from './platform/storage.js';
 import {
   registerServiceWorker,
   setupInstallHelpPopover,
@@ -74,312 +75,314 @@ function isDesktopMotionOffMode() {
 }
 
 function showToast(text, durationMs = 300) {
-      if (!toast || !text) return;
-      toast.textContent = text;
-      toast.classList.add('show');
-      if (toastTimer) window.clearTimeout(toastTimer);
-      toastTimer = window.setTimeout(() => {
-        toast.classList.remove('show');
-      }, durationMs);
-    }
+  if (!toast || !text) return;
+  toast.textContent = text;
+  toast.classList.add('show');
+  if (toastTimer) window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    toast.classList.remove('show');
+  }, durationMs);
+}
 
 function clipText(value, max = MAX_ERROR_BODY_CHARS) {
-      const text = String(value ?? '');
-      if (text.length <= max) return text;
-      return `${text.slice(0, max)}\n...<truncated ${text.length - max} chars>`;
-    }
+  const text = String(value ?? '');
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}\n...<truncated ${text.length - max} chars>`;
+}
 
 function headersToObject(headers) {
-      const picked = ['content-type', 'cache-control', 'etag', 'cf-ray', 'server', 'date'];
-      const obj = {};
-      for (const key of picked) {
-        const value = headers.get(key);
-        if (value) obj[key] = value;
-      }
-      return obj;
-    }
+  const picked = ['content-type', 'cache-control', 'etag', 'cf-ray', 'server', 'date'];
+  const obj = {};
+  for (const key of picked) {
+    const value = headers.get(key);
+    if (value) obj[key] = value;
+  }
+  return obj;
+}
 
-    function setErrorLog(logObject) {
-      latestErrorLogText = JSON.stringify(logObject, null, 2);
-      if (ENABLE_ERROR_LOG_UI) {
-        errorLog.textContent = latestErrorLogText;
-        errorLogWrap.classList.add('show');
-        syncTopPanelSize();
-      }
-      console.error('songs-db-detailed-error', logObject);
-    }
+function setErrorLog(logObject) {
+  latestErrorLogText = JSON.stringify(logObject, null, 2);
+  if (ENABLE_ERROR_LOG_UI) {
+    errorLog.textContent = latestErrorLogText;
+    errorLogWrap.classList.add('show');
+    syncTopPanelSize();
+  }
+  console.error('songs-db-detailed-error', logObject);
+}
 
-    function clearErrorLog() {
-      latestErrorLogText = '';
-      if (ENABLE_ERROR_LOG_UI) {
-        errorLog.textContent = 'エラー時に情報を表示します。';
-      }
-      errorLogWrap.classList.remove('show');
-      syncTopPanelSize();
-    }
+function clearErrorLog() {
+  latestErrorLogText = '';
+  if (ENABLE_ERROR_LOG_UI) {
+    errorLog.textContent = 'エラー時に情報を表示します。';
+  }
+  errorLogWrap.classList.remove('show');
+  syncTopPanelSize();
+}
 
-    async function copyErrorLog() {
-      if (!latestErrorLogText) {
-        showToast('ログなし');
+async function copyErrorLog() {
+  if (!latestErrorLogText) {
+    showToast('ログなし');
+    return;
+  }
+  const copied = await copyTextToClipboard(latestErrorLogText);
+  if (!copied) {
+    setErrorStatus();
+  }
+}
+
+let setSwipeCard = () => {};
+let setTopSwipeCard = () => {};
+let getTopSwipeCard = () => 0;
+let triggerSwipeHint = () => {};
+let swipeHintIntervalId = null;
+let topMenuCollapsed = false;
+let topSwipeCardIndex = 0;
+
+function getCollapsedTopHeight(topForm, filterPanel) {
+  if (!topForm || !filterPanel) return 0;
+  const wasCollapsed = topForm.classList.contains('collapsed');
+  topForm.classList.add('collapsed');
+  const statusSummary = filterPanel.querySelector('.top-summary .summary-box');
+  const collapsedHeightBase = Math.ceil((statusSummary || filterPanel).getBoundingClientRect().height);
+  const collapsedHeight = collapsedHeightBase + 2;
+  if (!wasCollapsed) {
+    topForm.classList.remove('collapsed');
+  }
+  return collapsedHeight;
+}
+
+function applyTopFormCollapsedState() {
+  const topForm = byId('topForm');
+  if (!topForm) return;
+  const shouldCollapse = topSwipeCardIndex === 0 && topMenuCollapsed;
+  topForm.classList.toggle('collapsed', shouldCollapse);
+}
+
+function setTopMenuCollapsed(nextCollapsed) {
+  topMenuCollapsed = Boolean(nextCollapsed);
+  applyTopFormCollapsedState();
+  syncTopPanelSize();
+  updateDummyCardsHeight();
+}
+
+function syncTopPanelSize() {
+  const filterPanel = document.querySelector('.top-panel[aria-label="絞り込みカード"]');
+  const topForm = byId('topForm');
+  if (!filterPanel || !topForm) return;
+
+  const hasCollapsed = topForm.classList.contains('collapsed');
+
+  topForm.classList.remove('collapsed');
+  const expandedHeight = Math.ceil(filterPanel.getBoundingClientRect().height);
+
+  const collapsedHeight = getCollapsedTopHeight(topForm, filterPanel);
+
+  topForm.classList.toggle('collapsed', hasCollapsed);
+
+  if (expandedHeight > 0) {
+    topForm.style.setProperty('--top-expanded-height', `${expandedHeight}px`);
+  }
+  if (collapsedHeight > 0) {
+    topForm.style.setProperty('--top-collapsed-height', `${collapsedHeight}px`);
+  }
+
+  window.requestAnimationFrame(() => {
+    updateMiddleCardsHeight();
+    updateDummyCardsHeight();
+  });
+}
+
+function setupTopSwipe() {
+  const wrap = byId('topSwipeWrap');
+  const track = byId('topSwipeTrack');
+  const memoInput = byId('memoInput');
+  const topForm = byId('topForm');
+  const topPageIndicator = byId('topPageIndicator');
+  const collapseButton = byId('collapseTopMenu');
+  const expandButton = byId('expandTopMenu');
+
+  if (!wrap || !track) return;
+  const topSwipe = setupSwipeTrack({
+    wrap,
+    track,
+    panelWidthPercent: 50,
+    allowInteractiveStart: true,
+    onCardChange: (index) => {
+      topSwipeCardIndex = index;
+      updatePageIndicator(topPageIndicator, index);
+      const isMemo = index === 1;
+      topForm?.classList.toggle('memo-active', isMemo);
+      if (isMemo) {
+        setTopMenuCollapsed(false);
         return;
       }
-      const copied = await copyTextToClipboard(latestErrorLogText);
-      if (!copied) {
-        setErrorStatus();
-      }
-    }
-
-    let setSwipeCard = () => {};
-    let setTopSwipeCard = () => {};
-    let getTopSwipeCard = () => 0;
-    let triggerSwipeHint = () => {};
-    let swipeHintIntervalId = null;
-    let topMenuCollapsed = false;
-    let topSwipeCardIndex = 0;
-
-    function getCollapsedTopHeight(topForm, filterPanel) {
-      if (!topForm || !filterPanel) return 0;
-      const wasCollapsed = topForm.classList.contains('collapsed');
-      topForm.classList.add('collapsed');
-      const statusSummary = filterPanel.querySelector('.top-summary .summary-box');
-      const collapsedHeightBase = Math.ceil((statusSummary || filterPanel).getBoundingClientRect().height);
-      const collapsedHeight = collapsedHeightBase + 2;
-      if (!wasCollapsed) {
-        topForm.classList.remove('collapsed');
-      }
-      return collapsedHeight;
-    }
-
-    function applyTopFormCollapsedState() {
-      const topForm = byId('topForm');
-      if (!topForm) return;
-      const shouldCollapse = topSwipeCardIndex === 0 && topMenuCollapsed;
-      topForm.classList.toggle('collapsed', shouldCollapse);
-    }
-
-    function setTopMenuCollapsed(nextCollapsed) {
-      topMenuCollapsed = Boolean(nextCollapsed);
       applyTopFormCollapsedState();
       syncTopPanelSize();
       updateDummyCardsHeight();
-    }
+    },
+  });
+  setTopSwipeCard = topSwipe.setCard;
+  getTopSwipeCard = topSwipe.getCurrent;
 
-    function syncTopPanelSize() {
-      const filterPanel = document.querySelector('.top-panel[aria-label="絞り込みカード"]');
-      const topForm = byId('topForm');
-      if (!filterPanel || !topForm) return;
+  if (memoInput) {
+    memoInput.addEventListener('focus', () => {
+      setTopSwipeCard(1);
+    });
+  }
 
-      const hasCollapsed = topForm.classList.contains('collapsed');
+  collapseButton?.addEventListener('click', () => {
+    if (!topForm || topSwipeCardIndex !== 0) return;
+    setTopMenuCollapsed(true);
+  });
 
-      topForm.classList.remove('collapsed');
-      const expandedHeight = Math.ceil(filterPanel.getBoundingClientRect().height);
+  expandButton?.addEventListener('click', () => {
+    if (!topForm) return;
+    setTopMenuCollapsed(false);
+  });
 
-      const collapsedHeight = getCollapsedTopHeight(topForm, filterPanel);
+  syncTopPanelSize();
+  window.addEventListener('resize', syncTopPanelSize);
+}
 
-      topForm.classList.toggle('collapsed', hasCollapsed);
+function setupBottomSwipe() {
+  const wrap = byId('bottomSwipeWrap');
+  const track = byId('bottomSwipeTrack');
+  if (!wrap || !track) return;
 
-      if (expandedHeight > 0) {
-        topForm.style.setProperty('--top-expanded-height', `${expandedHeight}px`);
-      }
-      if (collapsedHeight > 0) {
-        topForm.style.setProperty('--top-collapsed-height', `${collapsedHeight}px`);
-      }
+  const bottomPageIndicator = byId('bottomPageIndicator');
+  const stopHint = () => {
+    track.classList.remove('hinting');
+  };
 
-      window.requestAnimationFrame(() => {
-        updateMiddleCardsHeight();
-        updateDummyCardsHeight();
-      });
-    }
+  const startHint = () => {
+    track.classList.remove('hinting');
+    void track.offsetWidth;
+    track.classList.add('hinting');
+    window.setTimeout(() => {
+      track.classList.remove('hinting');
+    }, 6500);
+  };
 
-    function setupTopSwipe() {
-      const wrap = byId('topSwipeWrap');
-      const track = byId('topSwipeTrack');
-      const memoInput = byId('memoInput');
-      const topForm = byId('topForm');
-      const topPageIndicator = byId('topPageIndicator');
-      const collapseButton = byId('collapseTopMenu');
-      const expandButton = byId('expandTopMenu');
+  const bottomSwipe = setupSwipeTrack({
+    wrap,
+    track,
+    panelWidthPercent: 50,
+    allowInteractiveStart: true,
+    onCardChange: (index) => {
+      updatePageIndicator(bottomPageIndicator, index);
+    },
+  });
+  const setCard = bottomSwipe.setCard;
 
-      if (!wrap || !track) return;
-      const topSwipe = setupSwipeTrack({
-        wrap,
-        track,
-        panelWidthPercent: 50,
-        allowInteractiveStart: true,
-        onCardChange: (index) => {
-          topSwipeCardIndex = index;
-          updatePageIndicator(topPageIndicator, index);
-          const isMemo = index === 1;
-          topForm?.classList.toggle('memo-active', isMemo);
-          if (isMemo) {
-            setTopMenuCollapsed(false);
-            return;
-          }
-          applyTopFormCollapsedState();
-          syncTopPanelSize();
-          updateDummyCardsHeight();
-        },
-      });
-      setTopSwipeCard = topSwipe.setCard;
-      getTopSwipeCard = topSwipe.getCurrent;
+  track.addEventListener('pointerdown', () => {
+    stopHint();
+  });
+  byId('q')?.addEventListener('focus', stopHint, { once: true });
+  byId('myEmoji')?.addEventListener('focus', stopHint, { once: true });
 
-      if (memoInput) {
-        memoInput.addEventListener('focus', () => {
-          setTopSwipeCard(1);
-        });
-      }
+  byId('danmakuType')?.addEventListener('change', (evt) => {
+    if (evt.target.value === 'my') setCard(1);
+  });
 
-      collapseButton?.addEventListener('click', () => {
-        if (!topForm || topSwipeCardIndex !== 0) return;
-        setTopMenuCollapsed(true);
-      });
+  byId('saveMyDanmaku')?.addEventListener('click', () => {
+    setCard(0);
+  });
 
-      expandButton?.addEventListener('click', () => {
-        if (!topForm) return;
-        setTopMenuCollapsed(false);
-      });
+  setSwipeCard = setCard;
+  triggerSwipeHint = isDesktopMotionOffMode() ? () => {} : startHint;
 
-      syncTopPanelSize();
-      window.addEventListener('resize', syncTopPanelSize);
-    }
-
-    function setupBottomSwipe() {
-      const wrap = byId('bottomSwipeWrap');
-      const track = byId('bottomSwipeTrack');
-      const bottomPageIndicator = byId('bottomPageIndicator');
-      const stopHint = () => {
-        track.classList.remove('hinting');
-      };
-
-      const startHint = () => {
-        track.classList.remove('hinting');
-        void track.offsetWidth;
-        track.classList.add('hinting');
-        window.setTimeout(() => {
-          track.classList.remove('hinting');
-        }, 6500);
-      };
-
-      const bottomSwipe = setupSwipeTrack({
-        wrap,
-        track,
-        panelWidthPercent: 50,
-        allowInteractiveStart: true,
-        onCardChange: (index) => {
-          updatePageIndicator(bottomPageIndicator, index);
-        },
-      });
-      const setCard = bottomSwipe.setCard;
-
-      track.addEventListener('pointerdown', () => {
-        stopHint();
-      });
-      byId('q').addEventListener('focus', stopHint, { once: true });
-      byId('myEmoji').addEventListener('focus', stopHint, { once: true });
-
-      byId('danmakuType').addEventListener('change', (evt) => {
-        if (evt.target.value === 'my') setCard(1);
-      });
-
-      byId('saveMyDanmaku').addEventListener('click', () => {
-        setCard(0);
-      });
-
-      setSwipeCard = setCard;
-      triggerSwipeHint = isDesktopMotionOffMode() ? () => {} : startHint;
-
-      if (!isDesktopMotionOffMode()) startHint();
-    }
+  if (!isDesktopMotionOffMode()) startHint();
+}
 
 
-    function collapseExpandedWhenOutOfView() {
-      if (!isMobileLayout()) return;
-      const activeCards = rows.querySelectorAll('.song-card.expanded, .song-card.preview-visible');
-      if (!activeCards.length) return;
-      const rowsRect = rows.getBoundingClientRect();
-      activeCards.forEach((card) => {
-        const cardRect = card.getBoundingClientRect();
-        const isOutOfView = cardRect.bottom <= rowsRect.top || cardRect.top >= rowsRect.bottom;
-        if (!isOutOfView) return;
-        card.classList.remove('expanded');
-        if (card.classList.contains('preview-visible')) {
-          card.classList.remove('preview-visible');
-          const toggleBtn = card.querySelector('button[data-preview-toggle]');
-          if (toggleBtn) {
-            toggleBtn.textContent = '▶リンクを開く';
-            toggleBtn.setAttribute('aria-expanded', 'false');
-          }
-        }
-      });
-    }
+function collapseSongCard(card) {
+  card.classList.remove('expanded', 'preview-visible');
+  const toggleBtn = card.querySelector('button[data-preview-toggle]');
+  if (!toggleBtn) return;
+  toggleBtn.textContent = '▶リンクを開く';
+  toggleBtn.setAttribute('aria-expanded', 'false');
+}
 
-    function updateMiddleCardsHeight() {
-      if (!rows) return;
+function collapseExpandedWhenOutOfView() {
+  if (!isMobileLayout()) return;
+  const activeCards = rows.querySelectorAll('.song-card.expanded, .song-card.preview-visible');
+  if (!activeCards.length) return;
+  const rowsRect = rows.getBoundingClientRect();
+  activeCards.forEach((card) => {
+    const cardRect = card.getBoundingClientRect();
+    const isOutOfView = cardRect.bottom <= rowsRect.top || cardRect.top >= rowsRect.bottom;
+    if (!isOutOfView) return;
+    collapseSongCard(card);
+  });
+}
 
-      const middleForm = document.querySelector('.middle-form');
-      if (!middleForm) return;
+function updateMiddleCardsHeight() {
+  if (!rows) return;
 
-      const middleRect = middleForm.getBoundingClientRect();
-      const available = Math.floor(middleRect.height - 4);
-      if (available > 120) {
-        rows.style.maxHeight = `${available}px`;
+  const middleForm = document.querySelector('.middle-form');
+  if (!middleForm) return;
+
+  const middleRect = middleForm.getBoundingClientRect();
+  const available = Math.floor(middleRect.height - 4);
+  if (available > 120) {
+    rows.style.maxHeight = `${available}px`;
+  } else {
+    rows.style.removeProperty('max-height');
+  }
+}
+
+function updateDummyCardsHeight() {
+  const topForm = byId('topForm');
+  if (topForm) {
+    const rootStyle = getComputedStyle(document.documentElement);
+    const fixedTopDummyHeight = rootStyle.getPropertyValue('--dummy-top-card-height-fixed').trim();
+    if (fixedTopDummyHeight && fixedTopDummyHeight !== 'auto') {
+      document.documentElement.style.setProperty('--dummy-top-card-height', fixedTopDummyHeight);
+    } else {
+      const isCollapsed = topForm.classList.contains('collapsed');
+      const topVarName = isCollapsed
+        ? '--top-collapsed-height'
+        : '--top-expanded-height';
+      const topCssHeight = getComputedStyle(topForm).getPropertyValue(topVarName).trim();
+      const extraExpanded = rootStyle.getPropertyValue('--dummy-top-card-extra-expanded').trim() || '3px';
+      const extraCollapsed = rootStyle.getPropertyValue('--dummy-top-card-extra-collapsed').trim() || '7px';
+      const extraTopDummy = isCollapsed ? extraCollapsed : extraExpanded;
+      if (topCssHeight) {
+        document.documentElement.style.setProperty('--dummy-top-card-height', `calc(${topCssHeight} + ${extraTopDummy})`);
       } else {
-        rows.style.removeProperty('max-height');
-      }
-    }
-
-    function updateDummyCardsHeight() {
-      const topForm = byId('topForm');
-      if (topForm) {
-        const rootStyle = getComputedStyle(document.documentElement);
-        const fixedTopDummyHeight = rootStyle.getPropertyValue('--dummy-top-card-height-fixed').trim();
-        if (fixedTopDummyHeight && fixedTopDummyHeight !== 'auto') {
-          document.documentElement.style.setProperty('--dummy-top-card-height', fixedTopDummyHeight);
-        } else {
-          const isCollapsed = topForm.classList.contains('collapsed');
-          const topVarName = isCollapsed
-            ? '--top-collapsed-height'
-            : '--top-expanded-height';
-          const topCssHeight = getComputedStyle(topForm).getPropertyValue(topVarName).trim();
-          const extraExpanded = rootStyle.getPropertyValue('--dummy-top-card-extra-expanded').trim() || '3px';
-          const extraCollapsed = rootStyle.getPropertyValue('--dummy-top-card-extra-collapsed').trim() || '7px';
-          const extraTopDummy = isCollapsed ? extraCollapsed : extraExpanded;
-          if (topCssHeight) {
-            document.documentElement.style.setProperty('--dummy-top-card-height', `calc(${topCssHeight} + ${extraTopDummy})`);
-          } else {
-            const topHeight = Math.ceil(topForm.getBoundingClientRect().height);
-            if (topHeight > 0) {
-              document.documentElement.style.setProperty('--dummy-top-card-height', `calc(${topHeight}px + ${extraTopDummy})`);
-            }
-          }
+        const topHeight = Math.ceil(topForm.getBoundingClientRect().height);
+        if (topHeight > 0) {
+          document.documentElement.style.setProperty('--dummy-top-card-height', `calc(${topHeight}px + ${extraTopDummy})`);
         }
       }
-
-      const searchPanel = document.querySelector('.bottom-panel[aria-label="検索フォームカード"]');
-      if (!searchPanel) return;
-      const bottomHeight = Math.ceil(searchPanel.getBoundingClientRect().height * 2);
-      if (bottomHeight > 0) {
-        document.documentElement.style.setProperty('--dummy-end-card-height', `${bottomHeight}px`);
-      }
     }
+  }
+
+  const searchPanel = document.querySelector('.bottom-panel[aria-label="検索フォームカード"]');
+  if (!searchPanel) return;
+  const bottomHeight = Math.ceil(searchPanel.getBoundingClientRect().height * 2);
+  if (bottomHeight > 0) {
+    document.documentElement.style.setProperty('--dummy-end-card-height', `${bottomHeight}px`);
+  }
+}
 
 
-    function updateMyDanmakuOptionLabel(inputValue = '') {
-      const option = document.querySelector('#danmakuType option[value="my"]');
-      if (!option) return;
+function updateMyDanmakuOptionLabel(inputValue = '') {
+  const option = document.querySelector('#danmakuType option[value="my"]');
+  if (!option) return;
 
-      const typed = String(inputValue || '').trim();
-      if (typed) {
-        option.textContent = buildMyDanmakuPreview(typed);
-        return;
-      }
-      option.textContent = DEFAULT_MY_DANMAKU_LABEL;
-    }
+  const typed = String(inputValue || '').trim();
+  if (typed) {
+    option.textContent = buildMyDanmakuPreview(typed);
+    return;
+  }
+  option.textContent = DEFAULT_MY_DANMAKU_LABEL;
+}
 
-    function eventTargetElement(target) {
-      if (target instanceof Element) return target;
-      return target?.parentElement || null;
-    }
+function eventTargetElement(target) {
+  if (target instanceof Element) return target;
+  return target?.parentElement || null;
+}
 
 function isInteractiveTarget(target) {
   const el = eventTargetElement(target);
@@ -431,429 +434,433 @@ function setupTapFocusRing() {
   }, true);
 }
 
-    function isMobileLayout() {
-      return window.matchMedia('(max-width: 768px)').matches;
+function isMobileLayout() {
+  return window.matchMedia('(max-width: 768px)').matches;
+}
+
+function collapseExpandedCards() {
+  rows
+    .querySelectorAll('.song-card.expanded, .song-card.preview-visible')
+    .forEach(collapseSongCard);
+}
+
+function filterItems(items) {
+  return filterSongItems(items, state);
+}
+
+const META_FALLBACK_JSON_URLS =
+  document.querySelector('meta[name="songs-r2-fallbacks"]')?.content
+    ?.split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)
+  || [];
+
+const GAS_SONGS_API_URL =
+  document.querySelector('meta[name="songs-gas-api-url"]')?.content
+  || '';
+
+// 一時的にブラウザからのGAS直フォールバックを無効化する。
+// 再実装時は true に戻すだけで既存コードを再利用できる。
+const ENABLE_GAS_FALLBACK = false;
+
+const SONGS_JSON_URL_OVERRIDE = [
+  window.__SONGS_JSON_URL__,
+  readStorageItem('songs_r2_json_url'),
+  document.querySelector('meta[name="songs-r2-json-url"]')?.content,
+]
+  .map((value) => String(value || '').trim())
+  .find((value) => value && !isPlaceholderUrl(value))
+  || '';
+
+const SONGS_JSON_FALLBACK_URLS = Array.from(new Set([
+  ...META_FALLBACK_JSON_URLS,
+]
+  .map((value) => String(value || '').trim())
+  .filter((value) => value && !isPlaceholderUrl(value))));
+
+
+const renderDeps = {
+  rows,
+  selectedCount,
+  totalCount,
+  state,
+  stableSongId,
+  fmtDate,
+  eventTargetElement,
+  isInteractiveTarget,
+  copyTextToClipboard,
+  showToast,
+  collapseExpandedCards,
+  resolveSingingTag,
+  bestExternalUrl,
+};
+
+function loadSongs() {
+  const requestCandidates = [
+    SONGS_JSON_URL_OVERRIDE,
+    ...SONGS_JSON_FALLBACK_URLS,
+    ...(ENABLE_GAS_FALLBACK ? [GAS_SONGS_API_URL] : []),
+  ].filter(Boolean);
+  return load({
+    setLoadingStatus,
+    clearErrorLog,
+    setErrorLog,
+    setStoppedStatus,
+    setRunningStatus,
+    filterItems,
+    render: (items, totals) => render(items, totals, renderDeps),
+    headersToObject,
+    clipText,
+    cacheKey: songsCacheKey,
+    cacheMaxAgeMs: DATA_REFRESH_TTL_MS,
+    requestCandidates,
+    rows,
+  }).then((result) => {
+    if (!result) return result;
+    sourceItemsCache = Array.isArray(result.sourceItems) ? result.sourceItems : [];
+    sourceTotalCache = Number(result.total ?? sourceItemsCache.length);
+    hasSourceItemsCache = true;
+    return result;
+  });
+}
+
+function rerenderFromLocalCache() {
+  if (!hasSourceItemsCache) return false;
+  const filteredItems = filterItems(sourceItemsCache);
+  render(filteredItems, { total: sourceTotalCache }, renderDeps);
+  setRunningStatus(filteredItems.length, sourceTotalCache);
+  return true;
+}
+
+function rerenderOrLoadSongs() {
+  if (rerenderFromLocalCache()) return;
+  loadSongs();
+}
+
+async function copyMemo() {
+  const memoInput = byId('memoInput');
+  if (!memoInput) return;
+  const copied = await copyTextToClipboard(memoInput.value || '');
+  if (!copied) {
+
+    return;
+  }
+  showToast('コピーしました');
+
+}
+
+async function pasteMemo() {
+  const memoInput = byId('memoInput');
+  if (!memoInput) return;
+
+  memoInput.focus();
+  try {
+    const text = await navigator.clipboard.readText();
+    insertTextIntoMemo(memoInput, text);
+    memoInput.focus();
+    showToast('貼り付けました');
+
+  } catch (_) {
+    const fallback = window.prompt('クリップボードへのアクセスに失敗しました。貼り付ける文字列を入力してください。', '');
+    if (fallback === null) {
+
+      return;
+    }
+    insertTextIntoMemo(memoInput, fallback);
+    memoInput.focus();
+    showToast('貼り付けました');
+
+  }
+}
+
+async function copyDanmaku() {
+  const type = byId('danmakuType').value;
+  const isCustomDanmaku = type.startsWith('custom:');
+  if (!isCustomDanmaku && type !== 'my') {
+    showToast('対象なし');
+    return;
+  }
+
+  let text = '';
+  if (type === 'my') text = state.myDanmaku || loadMyDanmakuCache();
+  if (isCustomDanmaku) text = type.slice('custom:'.length);
+
+  if (!text.trim()) {
+    showToast('対象なし');
+    return;
+  }
+
+  const copied = await copyTextToClipboard(text.trim());
+  if (copied) {
+    showToast('弾幕をコピーしました');
+  }
+}
+
+function toggleKind(kind) {
+  const set = new Set(state.kinds);
+  if (set.has(kind)) set.delete(kind);
+  else set.add(kind);
+  state.kinds = [...set];
+
+  if (state.kinds.length === 0) {
+    state.kinds = [...DEFAULT_KINDS];
+    byId('kindCover').checked = true;
+    byId('kindShort').checked = true;
+    byId('kindLive').checked = true;
+  }
+  rerenderOrLoadSongs();
+}
+
+function bind() {
+  if (!ENABLE_ERROR_LOG_UI) {
+    errorLogWrap.hidden = true;
+  }
+
+  const rerenderSearch = debounce(
+    rerenderOrLoadSongs,
+    SEARCH_DEBOUNCE_MS,
+  );
+
+  byId('q').addEventListener('input', (e) => {
+    state.q = e.target.value.trim();
+    rerenderSearch();
+  });
+
+  byId('kindCover').addEventListener('change', () => toggleKind('cover'));
+  byId('kindShort').addEventListener('change', () => toggleKind('short'));
+  byId('kindLive').addEventListener('change', () => toggleKind('live'));
+
+  byId('sortField').addEventListener('change', (e) => {
+    state.sortField = e.target.value;
+    state.sortMode = `${state.sortField}-${state.sortOrder}`;
+    rerenderOrLoadSongs();
+  });
+
+  byId('sortOrder').addEventListener('change', (e) => {
+    state.sortOrder = e.target.value;
+    state.sortMode = `${state.sortField}-${state.sortOrder}`;
+    rerenderOrLoadSongs();
+  });
+
+  byId('clear').addEventListener('click', () => {
+    rerenderSearch.cancel();
+    state.q = '';
+    byId('q').value = '';
+    rerenderOrLoadSongs();
+  });
+
+  byId('copyDanmaku').addEventListener('click', copyDanmaku);
+  byId('copyMemo')?.addEventListener('click', copyMemo);
+  byId('pasteMemo')?.addEventListener('click', pasteMemo);
+  if (ENABLE_ERROR_LOG_UI) {
+    byId('copyErrorLog').addEventListener('click', copyErrorLog);
+  }
+
+  byId('saveMyDanmaku').addEventListener('click', async () => {
+    const emojiInput = byId('myEmoji');
+    const rawEmoji = String(emojiInput.value || '').trim();
+
+    if (!rawEmoji) {
+      updateMyDanmakuOptionLabel('');
+      showToast('絵文字を入力してください');
+      return;
     }
 
-    function collapseExpandedCards() {
-      rows.querySelectorAll('.song-card.expanded').forEach((card) => {
-        card.classList.remove('expanded');
+    const safeEmoji = normalizeMyEmoji(rawEmoji);
+    emojiInput.value = safeEmoji;
+
+    const text = buildMyDanmaku(safeEmoji);
+    state.myDanmaku = text;
+    saveMyDanmakuCache(text);
+    updateMyDanmakuOptionLabel(safeEmoji);
+
+    const select = byId('danmakuType');
+    select.value = 'my';
+    select.classList.remove('roll-highlight');
+    void select.offsetWidth;
+    select.classList.add('roll-highlight');
+
+    const copied = await copyTextToClipboard(text);
+
+    setSwipeCard(0);
+    showToast(copied ? '弾幕を作成してコピーしました' : '弾幕を作成しました');
+
+  });
+
+  const updateTopFormCollapseByScroll = () => {
+    const topForm = byId('topForm');
+    if (!topForm || !isMobileLayout()) return;
+    if (getTopSwipeCard() === 1) return;
+
+    const cardSample = rows?.querySelector('.song-card');
+    const rowGap = Number.parseFloat(window.getComputedStyle(rows).rowGap || '0') || 0;
+    const cardHeight = cardSample ? (cardSample.offsetHeight + rowGap) : 44;
+    const collapseThreshold = cardHeight * 2;
+    const currentScrollTop = rows?.scrollTop ?? window.scrollY;
+    const shouldCollapse = currentScrollTop > collapseThreshold;
+    if (shouldCollapse === topMenuCollapsed) return;
+    setTopMenuCollapsed(shouldCollapse);
+  };
+
+  const updateScrollTopOffset = () => {
+    const container = byId('songsPage');
+    const topForm = byId('topForm');
+    const middleForm = document.querySelector('.middle-form');
+    const bottomForm = document.querySelector('.bottom-form');
+    if (!bottomForm || !container) return;
+
+    const isWideDesktop = window.matchMedia('(min-width: 1100px)').matches;
+    if (isWideDesktop) {
+      [topForm, middleForm, bottomForm].forEach((panel) => {
+        panel?.style.removeProperty('left');
+        panel?.style.removeProperty('width');
       });
-    }
-
-    function filterItems(items) {
-      return filterSongItems(items, state);
-    }
-
-    const META_FALLBACK_JSON_URLS =
-      document.querySelector('meta[name="songs-r2-fallbacks"]')?.content
-        ?.split(',')
-        .map((v) => v.trim())
-        .filter(Boolean)
-      || [];
-
-    const GAS_SONGS_API_URL =
-      document.querySelector('meta[name="songs-gas-api-url"]')?.content
-      || '';
-
-    // 一時的にブラウザからのGAS直フォールバックを無効化する。
-    // 再実装時は true に戻すだけで既存コードを再利用できる。
-    const ENABLE_GAS_FALLBACK = false;
-
-    const SONGS_JSON_URL_OVERRIDE = [
-      window.__SONGS_JSON_URL__,
-      localStorage.getItem('songs_r2_json_url'),
-      document.querySelector('meta[name="songs-r2-json-url"]')?.content,
-    ]
-      .map((value) => String(value || '').trim())
-      .find((value) => value && !isPlaceholderUrl(value))
-      || '';
-
-    const SONGS_JSON_FALLBACK_URLS = Array.from(new Set([
-      ...META_FALLBACK_JSON_URLS,
-    ]
-      .map((value) => String(value || '').trim())
-      .filter((value) => value && !isPlaceholderUrl(value))));
-
-
-    const renderDeps = {
-      rows,
-      selectedCount,
-      totalCount,
-      state,
-      stableSongId,
-      fmtDate,
-      eventTargetElement,
-      isInteractiveTarget,
-      copyTextToClipboard,
-      showToast,
-      collapseExpandedCards,
-      resolveSingingTag,
-      bestExternalUrl,
-    };
-
-    function loadSongs() {
-      const requestCandidates = [
-        SONGS_JSON_URL_OVERRIDE,
-        ...SONGS_JSON_FALLBACK_URLS,
-        ...(ENABLE_GAS_FALLBACK ? [GAS_SONGS_API_URL] : []),
-      ].filter(Boolean);
-      return load({
-        setLoadingStatus,
-        clearErrorLog,
-        setErrorLog,
-        setStoppedStatus,
-        setRunningStatus,
-        filterItems,
-        render: (items, totals) => render(items, totals, renderDeps),
-        headersToObject,
-        clipText,
-        cacheKey: songsCacheKey,
-        cacheMaxAgeMs: DATA_REFRESH_TTL_MS,
-        requestCandidates,
-        rows,
-      }).then((result) => {
-        if (!result) return result;
-        sourceItemsCache = Array.isArray(result.sourceItems) ? result.sourceItems : [];
-        sourceTotalCache = Number(result.total ?? sourceItemsCache.length);
-        hasSourceItemsCache = true;
-        return result;
-      });
-    }
-
-    function rerenderFromLocalCache() {
-      if (!hasSourceItemsCache) return false;
-      const filteredItems = filterItems(sourceItemsCache);
-      render(filteredItems, { total: sourceTotalCache }, renderDeps);
-      setRunningStatus(filteredItems.length, sourceTotalCache);
-      return true;
-    }
-
-    function rerenderOrLoadSongs() {
-      if (rerenderFromLocalCache()) return;
-      loadSongs();
-    }
-
-    async function copyMemo() {
-      const memoInput = byId('memoInput');
-      if (!memoInput) return;
-      const copied = await copyTextToClipboard(memoInput.value || '');
-      if (!copied) {
-
-        return;
-      }
-      showToast('コピーしました');
-
-    }
-
-    async function pasteMemo() {
-      const memoInput = byId('memoInput');
-      if (!memoInput) return;
-
-      memoInput.focus();
-      try {
-        const text = await navigator.clipboard.readText();
-        insertTextIntoMemo(memoInput, text);
-        memoInput.focus();
-        showToast('貼り付けました');
-
-      } catch (_) {
-        const fallback = window.prompt('クリップボードへのアクセスに失敗しました。貼り付ける文字列を入力してください。', '');
-        if (fallback === null) {
-
-          return;
-        }
-        insertTextIntoMemo(memoInput, fallback);
-        memoInput.focus();
-        showToast('貼り付けました');
-
-      }
-    }
-
-    async function copyDanmaku() {
-      const type = byId('danmakuType').value;
-      const isCustomDanmaku = type.startsWith('custom:');
-      if (!isCustomDanmaku && type !== 'my') {
-        showToast('対象なし');
-        return;
-      }
-
-      let text = '';
-      if (type === 'my') text = state.myDanmaku || loadMyDanmakuCache();
-      if (isCustomDanmaku) text = type.slice('custom:'.length);
-
-      if (!text.trim()) {
-        showToast('対象なし');
-        return;
-      }
-
-      const copied = await copyTextToClipboard(text.trim());
-      if (copied) {
-        showToast('弾幕を作成しました');
-      }
-    }
-
-    function toggleKind(kind) {
-      const set = new Set(state.kinds);
-      if (set.has(kind)) set.delete(kind);
-      else set.add(kind);
-      state.kinds = [...set];
-
-      if (state.kinds.length === 0) {
-        state.kinds = [...DEFAULT_KINDS];
-        byId('kindCover').checked = true;
-        byId('kindShort').checked = true;
-        byId('kindLive').checked = true;
-      }
-      rerenderOrLoadSongs();
-    }
-
-    function bind() {
-      if (!ENABLE_ERROR_LOG_UI) {
-        errorLogWrap.hidden = true;
-      }
-
-      const rerenderSearch = debounce(
-        rerenderOrLoadSongs,
-        SEARCH_DEBOUNCE_MS,
-      );
-
-      byId('q').addEventListener('input', (e) => {
-        state.q = e.target.value.trim();
-        rerenderSearch();
-      });
-
-      byId('kindCover').addEventListener('change', () => toggleKind('cover'));
-      byId('kindShort').addEventListener('change', () => toggleKind('short'));
-      byId('kindLive').addEventListener('change', () => toggleKind('live'));
-
-      byId('sortField').addEventListener('change', (e) => {
-        state.sortField = e.target.value;
-        state.sortMode = `${state.sortField}-${state.sortOrder}`;
-        rerenderOrLoadSongs();
-      });
-
-      byId('sortOrder').addEventListener('change', (e) => {
-        state.sortOrder = e.target.value;
-        state.sortMode = `${state.sortField}-${state.sortOrder}`;
-        rerenderOrLoadSongs();
-      });
-
-      byId('clear').addEventListener('click', () => {
-        rerenderSearch.cancel();
-        state.q = '';
-        byId('q').value = '';
-        rerenderOrLoadSongs();
-      });
-
-      byId('copyDanmaku').addEventListener('click', copyDanmaku);
-      byId('copyMemo')?.addEventListener('click', copyMemo);
-      byId('pasteMemo')?.addEventListener('click', pasteMemo);
-      if (ENABLE_ERROR_LOG_UI) {
-        byId('copyErrorLog').addEventListener('click', copyErrorLog);
-      }
-
-      byId('saveMyDanmaku').addEventListener('click', async () => {
-        const emojiInput = byId('myEmoji');
-        const rawEmoji = String(emojiInput.value || '').trim();
-
-        if (!rawEmoji) {
-          updateMyDanmakuOptionLabel('');
-          showToast('絵文字を入力してください');
-          return;
-        }
-
-        const safeEmoji = normalizeMyEmoji(rawEmoji);
-        emojiInput.value = safeEmoji;
-
-        const text = buildMyDanmaku(safeEmoji);
-        state.myDanmaku = text;
-        saveMyDanmakuCache(text);
-        updateMyDanmakuOptionLabel(safeEmoji);
-
-        const select = byId('danmakuType');
-        select.value = 'my';
-        select.classList.remove('roll-highlight');
-        void select.offsetWidth;
-        select.classList.add('roll-highlight');
-
-        const copied = await copyTextToClipboard(text);
-
-        setSwipeCard(0);
-        showToast(copied ? '弾幕を作成してコピーしました' : '弾幕を作成しました');
-
-      });
-
-      const updateTopFormCollapseByScroll = () => {
-        const topForm = byId('topForm');
-        if (!topForm || !isMobileLayout()) return;
-        if (getTopSwipeCard() === 1) return;
-
-        const cardSample = rows?.querySelector('.song-card');
-        const rowGap = Number.parseFloat(window.getComputedStyle(rows).rowGap || '0') || 0;
-        const cardHeight = cardSample ? (cardSample.offsetHeight + rowGap) : 44;
-        const collapseThreshold = cardHeight * 2;
-        const currentScrollTop = rows?.scrollTop ?? window.scrollY;
-        const shouldCollapse = currentScrollTop > collapseThreshold;
-        if (shouldCollapse === topMenuCollapsed) return;
-        setTopMenuCollapsed(shouldCollapse);
-      };
-
-      const updateScrollTopOffset = () => {
-        const container = byId('songsPage');
-        const topForm = byId('topForm');
-        const middleForm = document.querySelector('.middle-form');
-        const bottomForm = document.querySelector('.bottom-form');
-        if (!bottomForm || !container) return;
-
-        const isWideDesktop = window.matchMedia('(min-width: 1100px)').matches;
-        if (isWideDesktop) {
-          [topForm, middleForm, bottomForm].forEach((panel) => {
-            panel?.style.removeProperty('left');
-            panel?.style.removeProperty('width');
-          });
-          document.documentElement.style.setProperty('--scroll-top-offset', '0px');
-          updateMiddleCardsHeight();
-          updateDummyCardsHeight();
-          syncTopPanelSize();
-          return;
-        }
-
-        const containerRect = container.getBoundingClientRect();
-        const maxCardWidth = 860;
-        const cappedWidth = Math.min(containerRect.width, maxCardWidth);
-        const cappedLeft = containerRect.left + ((containerRect.width - cappedWidth) / 2);
-        const sharedLeft = `${Math.round(cappedLeft)}px`;
-        const sharedWidth = `${Math.round(cappedWidth)}px`;
-
-        if (topForm) {
-          topForm.style.left = sharedLeft;
-          topForm.style.width = sharedWidth;
-        }
-        if (middleForm) {
-          middleForm.style.left = sharedLeft;
-          middleForm.style.width = sharedWidth;
-        }
-        bottomForm.style.left = sharedLeft;
-        bottomForm.style.width = sharedWidth;
-
-        const rect = bottomForm.getBoundingClientRect();
-        const overlap = Math.max(0, window.innerHeight - rect.top);
-        const offset = overlap > 0 ? overlap + 8 : 0;
-        document.documentElement.style.setProperty('--scroll-top-offset', `${offset}px`);
-        updateMiddleCardsHeight();
-        updateDummyCardsHeight();
-        syncTopPanelSize();
-      };
-
-      const scheduleViewportLayoutUpdate = rafThrottle(() => {
-        updateTopFormCollapseByScroll();
-        updateScrollTopOffset();
-      });
-      const scheduleRowsVisibilityUpdate = rafThrottle(() => {
-        updateTopFormCollapseByScroll();
-        collapseExpandedWhenOutOfView();
-      });
-
-      const MIN_BUBBLE_INTERVAL_MS = 48;
-      const MIN_SCROLL_DELTA_FOR_BUBBLE = 3;
-      let lastBubbleAt = 0;
-      let lastWindowScrollTop = window.scrollY;
-      let lastWindowBubbleAt = Date.now();
-      let previousRowsScrollTop = 0;
-      let lastRowsBubbleAt = Date.now();
-      let cachedCardHeight = 44;
-      let cachedCardHeightAt = 0;
-
-      const getCardHeight = (now) => {
-        if (now - cachedCardHeightAt <= 240) return cachedCardHeight;
-        const cardSample = rows.querySelector('.song-card');
-        const rowGap = Number.parseFloat(window.getComputedStyle(rows).rowGap || '0') || 0;
-        cachedCardHeight = cardSample ? (cardSample.offsetHeight + rowGap) : 44;
-        cachedCardHeightAt = now;
-        return cachedCardHeight;
-      };
-
-      const maybeBubble = (deltaPx, elapsedMs, cardHeight) => {
-        if (deltaPx < MIN_SCROLL_DELTA_FOR_BUBBLE) return;
-        const now = Date.now();
-        if (now - lastBubbleAt < MIN_BUBBLE_INTERVAL_MS) return;
-        const intensity = computeBubbleIntensity(deltaPx, elapsedMs, cardHeight);
-        if (intensity < 0.4) return;
-        lastBubbleAt = now;
-        const mode = intensity >= 10 ? 'burst' : 'normal';
-        createScrollBubbles({
-          container: scrollBubbles,
-          mode,
-          intensity,
-          disabled: isDesktopMotionOffMode(),
-        });
-      };
-
-      window.addEventListener('scroll', () => {
-        scheduleViewportLayoutUpdate();
-
-        const now = Date.now();
-        const deltaWindow = Math.abs(window.scrollY - lastWindowScrollTop);
-        const elapsedWindow = Math.max(1, now - lastWindowBubbleAt);
-        const cardHeight = getCardHeight(now);
-
-        maybeBubble(deltaWindow, elapsedWindow, cardHeight);
-        lastWindowScrollTop = window.scrollY;
-        lastWindowBubbleAt = now;
-      });
-
-      window.addEventListener('resize', scheduleViewportLayoutUpdate);
-
-      rows.addEventListener('scroll', () => {
-        const now = Date.now();
-        const cardHeight = getCardHeight(now);
-        const deltaPx = Math.abs(rows.scrollTop - previousRowsScrollTop);
-        const elapsedRows = Math.max(1, now - lastRowsBubbleAt);
-
-        maybeBubble(deltaPx, elapsedRows, cardHeight);
-
-        previousRowsScrollTop = rows.scrollTop;
-        lastRowsBubbleAt = now;
-
-        scheduleRowsVisibilityUpdate();
-      });
-
-
-      const media = window.matchMedia('(max-width: 768px)');
-      media.addEventListener('change', () => {
-        collapseExpandedCards();
-        updateScrollTopOffset();
-      });
-
-      updateScrollTopOffset();
+      document.documentElement.style.setProperty('--scroll-top-offset', '0px');
       updateMiddleCardsHeight();
-      updateTopFormCollapseByScroll();
+      updateDummyCardsHeight();
+      syncTopPanelSize();
+      return;
     }
+
+    const containerRect = container.getBoundingClientRect();
+    const maxCardWidth = 860;
+    const cappedWidth = Math.min(containerRect.width, maxCardWidth);
+    const cappedLeft = containerRect.left + ((containerRect.width - cappedWidth) / 2);
+    const sharedLeft = `${Math.round(cappedLeft)}px`;
+    const sharedWidth = `${Math.round(cappedWidth)}px`;
+
+    if (topForm) {
+      topForm.style.left = sharedLeft;
+      topForm.style.width = sharedWidth;
+    }
+    if (middleForm) {
+      middleForm.style.left = sharedLeft;
+      middleForm.style.width = sharedWidth;
+    }
+    bottomForm.style.left = sharedLeft;
+    bottomForm.style.width = sharedWidth;
+
+    const rect = bottomForm.getBoundingClientRect();
+    const overlap = Math.max(0, window.innerHeight - rect.top);
+    const offset = overlap > 0 ? overlap + 8 : 0;
+    document.documentElement.style.setProperty('--scroll-top-offset', `${offset}px`);
+    updateMiddleCardsHeight();
+    updateDummyCardsHeight();
+    syncTopPanelSize();
+  };
+
+  const scheduleViewportLayoutUpdate = rafThrottle(() => {
+    updateTopFormCollapseByScroll();
+    updateScrollTopOffset();
+  });
+  const scheduleRowsVisibilityUpdate = rafThrottle(() => {
+    updateTopFormCollapseByScroll();
+    collapseExpandedWhenOutOfView();
+  });
+
+  const MIN_BUBBLE_INTERVAL_MS = 48;
+  const MIN_SCROLL_DELTA_FOR_BUBBLE = 3;
+  let lastBubbleAt = 0;
+  let lastWindowScrollTop = window.scrollY;
+  let lastWindowBubbleAt = Date.now();
+  let previousRowsScrollTop = 0;
+  let lastRowsBubbleAt = Date.now();
+  let cachedCardHeight = 44;
+  let cachedCardHeightAt = 0;
+
+  const getCardHeight = (now) => {
+    if (now - cachedCardHeightAt <= 240) return cachedCardHeight;
+    const cardSample = rows.querySelector('.song-card');
+    const rowGap = Number.parseFloat(window.getComputedStyle(rows).rowGap || '0') || 0;
+    cachedCardHeight = cardSample ? (cardSample.offsetHeight + rowGap) : 44;
+    cachedCardHeightAt = now;
+    return cachedCardHeight;
+  };
+
+  const maybeBubble = (deltaPx, elapsedMs, cardHeight) => {
+    if (deltaPx < MIN_SCROLL_DELTA_FOR_BUBBLE) return;
+    const now = Date.now();
+    if (now - lastBubbleAt < MIN_BUBBLE_INTERVAL_MS) return;
+    const intensity = computeBubbleIntensity(deltaPx, elapsedMs, cardHeight);
+    if (intensity < 0.4) return;
+    lastBubbleAt = now;
+    const mode = intensity >= 10 ? 'burst' : 'normal';
+    createScrollBubbles({
+      container: scrollBubbles,
+      mode,
+      intensity,
+      disabled: isDesktopMotionOffMode(),
+    });
+  };
+
+  window.addEventListener('scroll', () => {
+    scheduleViewportLayoutUpdate();
+
+    const now = Date.now();
+    const deltaWindow = Math.abs(window.scrollY - lastWindowScrollTop);
+    const elapsedWindow = Math.max(1, now - lastWindowBubbleAt);
+    const cardHeight = getCardHeight(now);
+
+    maybeBubble(deltaWindow, elapsedWindow, cardHeight);
+    lastWindowScrollTop = window.scrollY;
+    lastWindowBubbleAt = now;
+  });
+
+  window.addEventListener('resize', scheduleViewportLayoutUpdate);
+
+  rows.addEventListener('scroll', () => {
+    const now = Date.now();
+    const cardHeight = getCardHeight(now);
+    const deltaPx = Math.abs(rows.scrollTop - previousRowsScrollTop);
+    const elapsedRows = Math.max(1, now - lastRowsBubbleAt);
+
+    maybeBubble(deltaPx, elapsedRows, cardHeight);
+
+    previousRowsScrollTop = rows.scrollTop;
+    lastRowsBubbleAt = now;
+
+    scheduleRowsVisibilityUpdate();
+  });
+
+
+  const media = window.matchMedia('(max-width: 768px)');
+  const handleMobileLayoutChange = () => {
+    collapseExpandedCards();
+    updateScrollTopOffset();
+  };
+  if (typeof media.addEventListener === 'function') {
+    media.addEventListener('change', handleMobileLayoutChange);
+  } else if (typeof media.addListener === 'function') {
+    media.addListener(handleMobileLayoutChange);
+  }
+
+  updateScrollTopOffset();
+  updateMiddleCardsHeight();
+  updateTopFormCollapseByScroll();
+}
 
 export function initializeApp() {
-    registerServiceWorker();
-    setupTapFocusRing();
-    setupInstallHelpPopover({
-      statusShell,
-      installHelpPopover,
-      installHelpBody,
-      installHelpAction,
-      installHelpClose,
-    });
-    byId('sortField').value = state.sortField;
-    byId('sortOrder').value = state.sortOrder;
-    state.sortMode = `${state.sortField}-${state.sortOrder}`;
-    state.myDanmaku = loadMyDanmakuCache();
-    updateMyDanmakuOptionLabel('');
-    if (!state.myDanmaku) triggerSwipeHint();
-    if (!swipeHintIntervalId && !isDesktopMotionOffMode()) {
-      swipeHintIntervalId = window.setInterval(() => {
-        if (!loadMyDanmakuCache()) triggerSwipeHint();
-      }, SWIPE_HINT_INTERVAL_MS);
-    }
-    loadSongs();
+  registerServiceWorker();
+  setupTapFocusRing();
+  setupInstallHelpPopover({
+    statusShell,
+    installHelpPopover,
+    installHelpBody,
+    installHelpAction,
+    installHelpClose,
+  });
+  byId('sortField').value = state.sortField;
+  byId('sortOrder').value = state.sortOrder;
+  state.sortMode = `${state.sortField}-${state.sortOrder}`;
+  state.myDanmaku = loadMyDanmakuCache();
+  updateMyDanmakuOptionLabel('');
+  if (!state.myDanmaku) triggerSwipeHint();
+  if (!swipeHintIntervalId && !isDesktopMotionOffMode()) {
+    swipeHintIntervalId = window.setInterval(() => {
+      if (!loadMyDanmakuCache()) triggerSwipeHint();
+    }, SWIPE_HINT_INTERVAL_MS);
+  }
+  loadSongs();
 }
 
 export { bind, setupTopSwipe, setupBottomSwipe };
-  
