@@ -38,7 +38,10 @@ import {
   updatePageIndicator,
   updateViewSwitcher,
 } from './ui/swipeTrack.js';
-import { calculateMiddlePanelInsets } from './ui/panelLayout.js';
+import {
+  calculateMiddlePanelInsets,
+  shouldAutoCollapseTopMenu,
+} from './ui/panelLayout.js';
 import { debounce, rafThrottle } from './utils/scheduling.js';
 
 const CACHE_PREFIX = 'songs-cache-v3';
@@ -415,6 +418,12 @@ function isMobileLayout() {
   return window.matchMedia('(max-width: 768px)').matches;
 }
 
+function isCompactDesktopLayout() {
+  return window.matchMedia(
+    '(max-width: 1099px) and (pointer: fine)',
+  ).matches;
+}
+
 function collapseExpandedCards() {
   rows
     .querySelectorAll('.song-card.expanded, .song-card.preview-visible')
@@ -667,7 +676,15 @@ function bind() {
 
   const updateTopFormCollapseByScroll = () => {
     const topForm = byId('topForm');
-    if (!topForm || !isMobileLayout()) return;
+    if (!topForm) return;
+    const autoCollapseEnabled = shouldAutoCollapseTopMenu({
+      mobileLayout: isMobileLayout(),
+      compactDesktopLayout: isCompactDesktopLayout(),
+    });
+    if (!autoCollapseEnabled) {
+      if (topMenuCollapsed) setTopMenuCollapsed(false);
+      return;
+    }
     if (getTopSwipeCard() === 1) return;
 
     const cardSample = rows?.querySelector('.song-card');
