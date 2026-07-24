@@ -487,7 +487,6 @@ function setupTapFocusRing() {
       isInteractiveTarget,
       copyTextToClipboard,
       showToast,
-      isMobileLayout,
       collapseExpandedCards,
       resolveSingingTag,
       bestExternalUrl,
@@ -707,6 +706,19 @@ function setupTapFocusRing() {
         const bottomForm = document.querySelector('.bottom-form');
         if (!bottomForm || !container) return;
 
+        const isWideDesktop = window.matchMedia('(min-width: 1100px)').matches;
+        if (isWideDesktop) {
+          [topForm, middleForm, bottomForm].forEach((panel) => {
+            panel?.style.removeProperty('left');
+            panel?.style.removeProperty('width');
+          });
+          document.documentElement.style.setProperty('--scroll-top-offset', '0px');
+          updateMiddleCardsHeight();
+          updateDummyCardsHeight();
+          syncTopPanelSize();
+          return;
+        }
+
         const containerRect = container.getBoundingClientRect();
         const maxCardWidth = 860;
         const cappedWidth = Math.min(containerRect.width, maxCardWidth);
@@ -811,9 +823,6 @@ function setupTapFocusRing() {
       const media = window.matchMedia('(max-width: 768px)');
       media.addEventListener('change', () => {
         collapseExpandedCards();
-        if (!isMobileLayout()) {
-          rows.querySelectorAll('.song-card').forEach((card) => card.classList.add('expanded'));
-        }
         updateScrollTopOffset();
       });
 
