@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bindViewSwitcher,
   clampSwipeIndex,
   resolveSwipeIndex,
   setupSwipeTrack,
+  updateViewSwitcher,
 } from '../src/ui/swipeTrack.js';
 
 describe('swipeTrack', () => {
@@ -67,5 +69,58 @@ describe('swipeTrack', () => {
     expect(swipe.getCurrent()).toBe(1);
     expect(track.style.transform).toBe('translateX(-50%)');
     expect(classNames.has('dragging')).toBe(false);
+  });
+
+  it('画面切り替えボタンの選択状態を更新する', () => {
+    const buttons = [0, 1].map((index) => {
+      const classNames = new Set();
+      return {
+        dataset: { cardIndex: String(index) },
+        classNames,
+        classList: {
+          toggle: (name, active) => {
+            if (active) classNames.add(name);
+            else classNames.delete(name);
+          },
+        },
+        setAttribute: (name, value) => {
+          if (name === 'aria-pressed') {
+            buttons[index].ariaPressed = value;
+          }
+        },
+      };
+    });
+    const switcher = {
+      querySelectorAll: () => buttons,
+    };
+
+    updateViewSwitcher(switcher, 1);
+
+    expect(buttons[0].classNames.has('active')).toBe(false);
+    expect(buttons[0].ariaPressed).toBe('false');
+    expect(buttons[1].classNames.has('active')).toBe(true);
+    expect(buttons[1].ariaPressed).toBe('true');
+  });
+
+  it('画面切り替えボタンから対象カードへ移動する', () => {
+    const listeners = [];
+    const buttons = [0, 1].map((index) => ({
+      dataset: { cardIndex: String(index) },
+      addEventListener: (type, listener) => {
+        if (type === 'click') listeners[index] = listener;
+      },
+    }));
+    const switcher = {
+      querySelectorAll: () => buttons,
+    };
+    const selected = [];
+
+    bindViewSwitcher({
+      switcher,
+      setCard: (index) => selected.push(index),
+    });
+    listeners[1]();
+
+    expect(selected).toEqual(['1']);
   });
 });
