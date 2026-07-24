@@ -62,7 +62,7 @@ describe('service worker', () => {
     });
     await installTask;
 
-    expect(context.caches.open).toHaveBeenCalledWith('uni-uta-shell-v1');
+    expect(context.caches.open).toHaveBeenCalledWith('uni-uta-shell-v2');
     const shellFiles = context.cache.addAll.mock.calls[0][0];
     expect(shellFiles).toContain('./index.html');
     expect(shellFiles).toContain('./src/app.js');
@@ -73,7 +73,7 @@ describe('service worker', () => {
   it('activate時に旧シェルキャッシュだけを削除する', async () => {
     context.caches.keys.mockResolvedValue([
       'uni-uta-shell-old',
-      'uni-uta-shell-v1',
+      'uni-uta-shell-v2',
       'unrelated-cache',
     ]);
     let activateTask;
@@ -147,7 +147,7 @@ describe('service worker', () => {
     const request = {
       method: 'GET',
       mode: 'cors',
-      url: 'https://example.com/src/app.js',
+      url: 'https://example.com/assets/icons/favicon.svg',
     };
 
     context.listeners.fetch({
@@ -166,5 +166,56 @@ describe('service worker', () => {
       request,
       expect.objectContaining({ source: 'clone' }),
     );
+  });
+
+  it('JavaScriptは新旧UIを混在させないためネットワークを優先する', async () => {
+    const networkResponse = {
+      ok: true,
+      clone: vi.fn(() => ({ source: 'clone' })),
+    };
+    context.fetch.mockResolvedValue(networkResponse);
+    let responseTask;
+    const request = {
+      method: 'GET',
+      mode: 'cors',
+      url: 'https://example.com/src/app.js',
+    };
+
+    context.listeners.fetch({
+      request,
+      respondWith: (task) => {
+        responseTask = task;
+      },
+      waitUntil: vi.fn(),
+    });
+
+    await expect(responseTask).resolves.toBe(networkResponse);
+    expect(context.fetch).toHaveBeenCalledWith(request);
+    expect(context.cache.put).toHaveBeenCalledWith(
+      request,
+      expect.objectContaining({ source: 'clone' }),
+    );
+  });
+
+  it('JavaScriptの通信失敗時は同一世代のキャッシュへ戻る', async () => {
+    const cachedResponse = { source: 'cache' };
+    context.fetch.mockRejectedValue(new Error('offline'));
+    context.caches.match.mockResolvedValue(cachedResponse);
+    let responseTask;
+    const request = {
+      method: 'GET',
+      mode: 'cors',
+      url: 'https://example.com/src/app.js',
+    };
+
+    context.listeners.fetch({
+      request,
+      respondWith: (task) => {
+        responseTask = task;
+      },
+      waitUntil: vi.fn(),
+    });
+
+    await expect(responseTask).resolves.toBe(cachedResponse);
   });
 });
