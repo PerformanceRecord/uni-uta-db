@@ -12,6 +12,7 @@ const runtimeJavaScriptFiles = [
   'src/features/scrollBubbles.js',
   'src/platform/clipboard.js',
   'src/platform/pwa.js',
+  'src/platform/storage.js',
   'src/state/appState.js',
   'src/ui/dom.js',
   'src/ui/renderSongs.js',
@@ -52,6 +53,41 @@ async function checkJson(file) {
   JSON.parse(await readFile(file, 'utf8'));
 }
 
+async function checkIndexHtml() {
+  const html = await readFile('index.html', 'utf8');
+  assert(
+    /<link\b[^>]*\bhref=["']assets\/styles\.css["']/i.test(html),
+    'index.html must load assets/styles.css',
+  );
+
+  const ids = Array.from(
+    html.matchAll(/\bid\s*=\s*["']([^"']+)["']/gi),
+    (match) => match[1],
+  );
+  const duplicateIds = ids.filter(
+    (id, index) => ids.indexOf(id) !== index,
+  );
+  assert(
+    duplicateIds.length === 0,
+    `Duplicate HTML id(s): ${Array.from(new Set(duplicateIds)).join(', ')}`,
+  );
+}
+
+async function checkManifestIcons() {
+  const manifestPath = 'assets/icons/site.webmanifest';
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  assert(Array.isArray(manifest.icons), `${manifestPath} icons must be an array`);
+
+  for (const icon of manifest.icons) {
+    const src = String(icon?.src || '').trim();
+    assert(src, `${manifestPath} contains an icon without src`);
+    assert(
+      existsSync(resolve('assets/icons', src)),
+      `Missing manifest icon: assets/icons/${src}`,
+    );
+  }
+}
+
 async function checkServiceWorkerShell() {
   const source = await readFile('sw.js', 'utf8');
   const shellBlock = source.match(/const APP_SHELL = \[([\s\S]*?)\];/);
@@ -62,6 +98,10 @@ async function checkServiceWorkerShell() {
     (match) => match[1],
   );
   assert(shellFiles.length > 0, 'sw.js APP_SHELL is empty');
+  assert(
+    new Set(shellFiles).size === shellFiles.length,
+    'sw.js APP_SHELL contains duplicate entries',
+  );
 
   for (const shellFile of shellFiles) {
     if (shellFile === './') continue;
@@ -78,7 +118,11 @@ async function main() {
     checkJson('package-lock.json'),
     checkJson('assets/icons/site.webmanifest'),
   ]);
-  await checkServiceWorkerShell();
+  await Promise.all([
+    checkIndexHtml(),
+    checkManifestIcons(),
+    checkServiceWorkerShell(),
+  ]);
   console.log(
     `Project check passed: ${runtimeJavaScriptFiles.length} JavaScript, `
     + `${appsScriptFiles.length} Apps Script, JSON and Service Worker shell.`,
