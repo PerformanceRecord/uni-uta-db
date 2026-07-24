@@ -11,6 +11,7 @@ function createServiceWorkerContext() {
   const listeners = {};
   const cache = {
     addAll: vi.fn(async () => {}),
+    match: vi.fn(async () => null),
     put: vi.fn(async () => {}),
   };
   const caches = {
@@ -62,18 +63,20 @@ describe('service worker', () => {
     });
     await installTask;
 
-    expect(context.caches.open).toHaveBeenCalledWith('uni-uta-shell-v2');
+    expect(context.caches.open).toHaveBeenCalledWith('uni-uta-shell-v3');
     const shellFiles = context.cache.addAll.mock.calls[0][0];
     expect(shellFiles).toContain('./index.html');
+    expect(shellFiles).toContain('./assets/styles.css');
     expect(shellFiles).toContain('./src/app.js');
     expect(shellFiles).toContain('./src/features/danmaku.js');
+    expect(shellFiles).toContain('./src/platform/storage.js');
     expect(context.self.skipWaiting).toHaveBeenCalledOnce();
   });
 
   it('activate時に旧シェルキャッシュだけを削除する', async () => {
     context.caches.keys.mockResolvedValue([
       'uni-uta-shell-old',
-      'uni-uta-shell-v2',
+      'uni-uta-shell-v3',
       'unrelated-cache',
     ]);
     let activateTask;
@@ -115,7 +118,7 @@ describe('service worker', () => {
   it('ナビゲーション失敗時はキャッシュ済みindex.htmlへ戻る', async () => {
     const cachedIndex = { source: 'cache' };
     context.fetch.mockRejectedValue(new Error('offline'));
-    context.caches.match.mockImplementation(async (request) => (
+    context.cache.match.mockImplementation(async (request) => (
       request === './index.html' ? cachedIndex : null
     ));
     let responseTask;
@@ -140,7 +143,7 @@ describe('service worker', () => {
       ok: true,
       clone: vi.fn(() => ({ source: 'clone' })),
     };
-    context.caches.match.mockResolvedValue(cachedResponse);
+    context.cache.match.mockResolvedValue(cachedResponse);
     context.fetch.mockResolvedValue(networkResponse);
     const backgroundTasks = [];
     let responseTask;
@@ -200,7 +203,7 @@ describe('service worker', () => {
   it('JavaScriptの通信失敗時は同一世代のキャッシュへ戻る', async () => {
     const cachedResponse = { source: 'cache' };
     context.fetch.mockRejectedValue(new Error('offline'));
-    context.caches.match.mockResolvedValue(cachedResponse);
+    context.cache.match.mockResolvedValue(cachedResponse);
     let responseTask;
     const request = {
       method: 'GET',
@@ -217,5 +220,57 @@ describe('service worker', () => {
     });
 
     await expect(responseTask).resolves.toBe(cachedResponse);
+  });
+
+  it('navigation の取得成功時はクエリ付きURLではなく index.html に保存する', async () => {
+    const networkResponse = {
+      ok: true,
+      clone: vi.fn(() => ({ source: 'clone' })),
+    };
+    context.fetch.mockResolvedValue(networkResponse);
+    let responseTask;
+    const request = {
+      method: 'GET',
+      mode: 'navigate',
+      url: 'https://example.com/?cache-bust=1',
+    };
+
+    context.listeners.fetch({
+      request,
+      respondWith: (task) => {
+        responseTask = task;
+      },
+    });
+
+    await expect(responseTask).resolves.toBe(networkResponse);
+    expect(context.cache.put).toHaveBeenCalledWith(
+      './index.html',
+      expect.objectContaining({ source: 'clone' }),
+    );
+    expect(context.cache.put).not.toHaveBeenCalledWith(
+      request,
+      expect.anything(),
+    );
+  });
+
+  it('未キャッシュの静的ファイルがオフラインなら無効な応答を返さず失敗させる', async () => {
+    context.cache.match.mockResolvedValue(null);
+    context.fetch.mockRejectedValue(new Error('offline'));
+    let responseTask;
+    const request = {
+      method: 'GET',
+      mode: 'cors',
+      url: 'https://example.com/assets/icons/missing.svg',
+    };
+
+    context.listeners.fetch({
+      request,
+      respondWith: (task) => {
+        responseTask = task;
+      },
+      waitUntil: vi.fn(),
+    });
+
+    await expect(responseTask).rejects.toThrow('offline');
   });
 });
