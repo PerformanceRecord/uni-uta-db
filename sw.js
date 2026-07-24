@@ -1,8 +1,8 @@
 const CACHE_PREFIX = 'uni-uta-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v2`;
+const CACHE_NAME = `${CACHE_PREFIX}v3`;
 const APP_SHELL = [
-  './',
   './index.html',
+  './assets/styles.css',
   './src/app.js',
   './src/data/songsApi.js',
   './src/domain/songCatalog.js',
@@ -10,6 +10,7 @@ const APP_SHELL = [
   './src/features/scrollBubbles.js',
   './src/platform/clipboard.js',
   './src/platform/pwa.js',
+  './src/platform/storage.js',
   './src/state/appState.js',
   './src/ui/dom.js',
   './src/ui/renderSongs.js',
@@ -28,16 +29,19 @@ async function cacheResponse(request, response) {
   return response;
 }
 
+async function matchCurrentCache(request) {
+  const cache = await caches.open(CACHE_NAME);
+  return cache.match(request);
+}
+
 async function networkFirstNavigation(request) {
   try {
     const response = await fetch(request);
-    return await cacheResponse(request, response);
-  } catch (_) {
-    return (
-      await caches.match(request)
-      || await caches.match('./index.html')
-      || await caches.match('./')
-    );
+    return await cacheResponse('./index.html', response);
+  } catch (error) {
+    const cached = await matchCurrentCache('./index.html');
+    if (cached) return cached;
+    throw error;
   }
 }
 
@@ -45,23 +49,27 @@ async function networkFirstAsset(request) {
   try {
     const response = await fetch(request);
     return await cacheResponse(request, response);
-  } catch (_) {
-    return caches.match(request);
+  } catch (error) {
+    const cached = await matchCurrentCache(request);
+    if (cached) return cached;
+    throw error;
   }
 }
 
 async function staleWhileRevalidate(request, event) {
-  const cached = await caches.match(request);
-  const networkRequest = fetch(request)
-    .then((response) => cacheResponse(request, response))
-    .catch(() => null);
+  const cached = await matchCurrentCache(request);
 
   if (cached) {
-    event.waitUntil(networkRequest);
+    event.waitUntil(
+      fetch(request)
+        .then((response) => cacheResponse(request, response))
+        .catch(() => null),
+    );
     return cached;
   }
 
-  return networkRequest;
+  return fetch(request)
+    .then((response) => cacheResponse(request, response));
 }
 
 self.addEventListener('install', (event) => {
