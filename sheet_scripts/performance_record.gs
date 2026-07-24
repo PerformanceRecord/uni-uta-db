@@ -39,6 +39,8 @@ const CFG_SONG_CLEANUP = {
   COL_TITLE: 2,        // B列
   COL_NOTE: 3,         // C列（備考）
   COL_LINK: 4,         // D列（歌枠直リンク）
+  COL_SOURCE: 5,       // E列（出典元情報）
+  COL_PUBLISHED: 6,    // F列（掲載チェック）
   COL_UPDATED: 7,      // G列（最新更新日）
   COL_START: 1,        // A列
   COL_END: 7,          // G列まで取得
@@ -150,11 +152,18 @@ function onEdit(e) {
     const writeStartRow = Math.max(rowStart, CFG_DATE.DATA_START_ROW);
     if (writeStartRow > rowEnd) return;
 
-    // G列を人手で編集した時は無視（再帰防止）
-    if (colStart <= CFG_DATE.DATE_COL && CFG_DATE.DATE_COL <= colEnd) return;
-
-    // A～Fとの交差がなければ何もしない
     const intersectsAF = !(colStart > CFG_DATE.RANGE_COL_END || colEnd < CFG_DATE.RANGE_COL_START);
+    const intersectsSongIdentity = !(
+      colStart > CFG_SONG_CLEANUP.COL_TITLE ||
+      colEnd < CFG_SONG_CLEANUP.COL_ARTIST
+    );
+    if (intersectsSongIdentity) {
+      // 新規行でA/Bが揃い、F列が未設定なら掲載対象を既定値にする。
+      _applyDefaultPublishChecks_(sh, writeStartRow, rowEnd);
+    }
+
+    // G列を人手で編集した時は更新日を書き戻さない。
+    if (colStart <= CFG_DATE.DATE_COL && CFG_DATE.DATE_COL <= colEnd) return;
     if (!intersectsAF) return;
 
     const today = new Date();
@@ -289,16 +298,12 @@ function exportSinceDates(selectedDateStrs) {
  *
  * 判定ルール
  * 1) A列アーティスト名 + B列曲名 が一致する行を同一歌唱曲データとする
- * 2) 同一曲内で D列リンクが完全一致する行は二重登録
- *    → 1件だけ残し、重複分は履歴シートへ移動
- *    → 残す行は古い方を優先
- *      （G列が古い方。同値/空欄なら上にある行）
- * 3) 同一曲内で C列またはD列が異なるものは別日歌唱候補
- *    → 歌ってみた > 歌枠 > ショート
- *    → 同順位なら D列表示文字列の冒頭8桁(yyyymmdd) が新しい方を残す
- *    → さらに同値なら G列（最新更新日）が新しい方
- *    → さらに同値なら上にある行を残す
- *    ※ 残さない行は履歴シートへ移動
+ * 2) 歌ってみた > 歌枠 > ショート のカテゴリ優先度で1件を残す
+ * 3) 同カテゴリ内では D列表示文字列の冒頭8桁(yyyymmdd) が新しい方を残す
+ * 4) さらに同値なら G列（最新更新日）が新しい方、最後は上にある行を残す
+ * 5) 残さない行は全て履歴シートへ移動する
+ * 6) 履歴へ移す行のE列/F列を、欠落させないよう残す行へ継承する
+ * 7) 完了後、B列昇順 → A列昇順 → D列降順で行全体を並べ替える
  */
 function cleanupSongRecords() {
   const sh = SpreadsheetApp.getActive().getSheetByName(CFG_SONG_CLEANUP.SHEET_NAME);
@@ -334,6 +339,9 @@ function cleanupSongRecords() {
     const linkDisp   = displays[i][CFG_SONG_CLEANUP.COL_LINK - 1] || '';
     const linkForm   = formulas[i][CFG_SONG_CLEANUP.COL_LINK - 1] || '';
     const linkRich   = richs[i][CFG_SONG_CLEANUP.COL_LINK - 1];
+    const sourceRaw  = values[i][CFG_SONG_CLEANUP.COL_SOURCE - 1];
+    const sourceRich = richs[i][CFG_SONG_CLEANUP.COL_SOURCE - 1];
+    const publishedRaw = values[i][CFG_SONG_CLEANUP.COL_PUBLISHED - 1];
     const updatedRaw = values[i][CFG_SONG_CLEANUP.COL_UPDATED - 1];
 
     const artist = _normalizeSongKeyText_(artistRaw);
@@ -358,6 +366,9 @@ function cleanupSongRecords() {
       linkDisplay: linkDisp,
       linkRich: linkRich || null,
       linkUrl: linkUrl || '',
+      sourceValue: sourceRaw,
+      sourceRich: sourceRich || null,
+      publishedValue: publishedRaw,
       updatedMs,
       songDateNum,
       sourceRank
@@ -379,62 +390,32 @@ function cleanupSongRecords() {
   const archiveMap = {}; // row => reason（履歴シートへ移動）
   const recordMap = {}; // row => record
   records.forEach(rec => { recordMap[rec.row] = rec; });
-  let exactDupArchived = 0;
   let rankedArchived = 0;
+  let inheritedSourceCount = 0;
+  let inheritedPublishCount = 0;
+  const inheritancePlans = [];
   const logs = [];
 
   Object.keys(groups).forEach(key => {
     const group = groups[key];
+    if (group.length <= 1) return;
 
-    /***** Step 1: D列リンク完全一致重複（重複分は履歴へ移動） *****/
-    const urlBuckets = {};
-    group.forEach(rec => {
-      if (!rec.linkUrl) return;
-      if (!urlBuckets[rec.linkUrl]) urlBuckets[rec.linkUrl] = [];
-      urlBuckets[rec.linkUrl].push(rec);
-    });
-
-    Object.keys(urlBuckets).forEach(url => {
-      const bucket = urlBuckets[url];
-      if (bucket.length <= 1) return;
-
-      // 古い順に並べ、先頭を残す
-      bucket.sort(_compareOlderFirstForExactDup_);
-
-      const keeper = bucket[0];
-      for (let i = 1; i < bucket.length; i++) {
-        const rec = bucket[i];
-        if (!archiveMap[rec.row]) {
-          archiveMap[rec.row] =
-            `D列リンク完全一致の二重登録として履歴へ移動（残す行: ${keeper.row} / URL: ${url}）`;
-          exactDupArchived++;
-          if (logs.length < CFG_SONG_CLEANUP.LOG_LIMIT) {
-            logs.push(`Row ${rec.row} 移動: D列リンク完全一致重複 → keep Row ${keeper.row} [${rec.artist} / ${rec.title}]`);
-          }
-        }
-      }
-    });
-
-    /***** Step 2: 同一曲内で最優先1件だけ残す *****/
-    const remain = group.filter(rec => !archiveMap[rec.row]);
-    if (remain.length <= 1) return;
-
-    let keeper = remain[0];
-    for (let i = 1; i < remain.length; i++) {
-      if (_compareBetterSongRecord_(remain[i], keeper) > 0) {
-        keeper = remain[i];
-      }
+    const selection = _selectSongGroup_(group);
+    const keeper = selection.keeper;
+    const archived = selection.archived;
+    const inheritance = _buildKeeperInheritance_(keeper, archived);
+    if (inheritance.sourceChanged || inheritance.publishedChanged) {
+      inheritancePlans.push(inheritance);
+      if (inheritance.sourceChanged) inheritedSourceCount++;
+      if (inheritance.publishedChanged) inheritedPublishCount++;
     }
 
-    remain.forEach(rec => {
-      if (rec.row === keeper.row) return;
-      if (!archiveMap[rec.row]) {
-        archiveMap[rec.row] =
-          `同一曲の優先順位で履歴へ移動（残す行: ${keeper.row} / 種別優先: ${_sourceRankLabel_(keeper.sourceRank)} / 日付: ${keeper.songDateNum || 'なし'}）`;
-        rankedArchived++;
-        if (logs.length < CFG_SONG_CLEANUP.LOG_LIMIT) {
-          logs.push(`Row ${rec.row} 移動: 同一曲整理 → keep Row ${keeper.row} [${rec.artist} / ${rec.title}]`);
-        }
+    archived.forEach(rec => {
+      archiveMap[rec.row] =
+        `同一曲の優先順位で履歴へ移動（残す行: ${keeper.row} / 種別優先: ${_sourceRankLabel_(keeper.sourceRank)} / 日付: ${keeper.songDateNum || 'なし'}）`;
+      rankedArchived++;
+      if (logs.length < CFG_SONG_CLEANUP.LOG_LIMIT) {
+        logs.push(`Row ${rec.row} 移動: 同一曲整理 → keep Row ${keeper.row} [${rec.artist} / ${rec.title}]`);
       }
     });
   });
@@ -443,6 +424,22 @@ function cleanupSongRecords() {
   const rowsToDeleteDesc = rowsToArchive.slice().sort((a, b) => b - a);
 
   if (!CFG_SONG_CLEANUP.DRY_RUN) {
+    inheritancePlans.forEach(plan => {
+      if (plan.sourceChanged) {
+        const sourceCell = sh.getRange(plan.keeperRow, CFG_SONG_CLEANUP.COL_SOURCE);
+        if (plan.sourceRich) {
+          sourceCell.setRichTextValue(
+            _cloneRichTextWithFallbackText_(plan.sourceRich, plan.sourceValue)
+          );
+        } else {
+          sourceCell.setValue(plan.sourceValue);
+        }
+      }
+      if (plan.publishedChanged) {
+        sh.getRange(plan.keeperRow, CFG_SONG_CLEANUP.COL_PUBLISHED).setValue(plan.publishedValue);
+      }
+    });
+
     if (rowsToArchive.length > 0) {
       const archiveSheet = _ensureArchiveSheetWithHeader_(sh);
       const rowsToAppend = rowsToArchive
@@ -490,24 +487,35 @@ function cleanupSongRecords() {
         archiveSheet
           .getRange(startRow, CFG_SONG_CLEANUP.COL_LINK, dRichValues.length, 1)
           .setRichTextValues(dRichValues);
+
+        // E列もリンク付き出典情報を保持したまま履歴へ移動
+        const eRichValues = rowsToArchive
+          .slice()
+          .sort((a, b) => a - b)
+          .map(rowNum => {
+            const rec = recordMap[rowNum];
+            const rich = rec && rec.sourceRich ? rec.sourceRich : null;
+            const text = rec && rec.sourceValue != null ? String(rec.sourceValue) : '';
+            return [_cloneRichTextWithFallbackText_(rich, text)];
+          });
+        archiveSheet
+          .getRange(startRow, CFG_SONG_CLEANUP.COL_SOURCE, eRichValues.length, 1)
+          .setRichTextValues(eRichValues);
       }
     }
     if (rowsToDeleteDesc.length > 0) {
       _deleteRowsDescendingInChunks_(sh, rowsToDeleteDesc);
     }
 
-    // 履歴シートの最新情報を同一楽曲へ反映（C列、E列、G列以降）
-    const syncResult = _syncLatestArchiveFieldsToPerformanceRecord_(sh);
-    Logger.log(
-      `履歴最新情報の反映: 対象曲数 ${syncResult.songCount}, 更新セル数 ${syncResult.updatedCellCount}, 更新行数 ${syncResult.updatedRowCount}`
-    );
+    _sortPerformanceRecordRows_(sh);
   }
 
   Logger.log('--- 歌唱DB整理 結果 ---');
   Logger.log(`対象曲キー数: ${Object.keys(groups).length}`);
   Logger.log(`履歴移動対象行数: ${rowsToDeleteDesc.length}${CFG_SONG_CLEANUP.DRY_RUN ? '（DRY RUN）' : ''}`);
-  Logger.log(`  - D列リンク完全一致重複（履歴移動）: ${exactDupArchived}`);
   Logger.log(`  - 同一曲優先順位整理（履歴移動）: ${rankedArchived}`);
+  Logger.log(`  - E列継承: ${inheritedSourceCount}`);
+  Logger.log(`  - F列継承: ${inheritedPublishCount}`);
   logs.forEach(line => Logger.log(line));
 
   const preview = logs.slice(0, 20).join('\n');
@@ -515,8 +523,9 @@ function cleanupSongRecords() {
     `歌唱DB整理 ${CFG_SONG_CLEANUP.DRY_RUN ? '（DRY RUN）' : '完了'}\n\n` +
     `対象曲キー数: ${Object.keys(groups).length}\n` +
     `履歴移動対象行数: ${rowsToDeleteDesc.length}\n` +
-    `- D列リンク完全一致重複（履歴移動）: ${exactDupArchived}\n` +
-    `- 同一曲優先順位整理（履歴移動）: ${rankedArchived}\n\n` +
+    `- 同一曲優先順位整理（履歴移動）: ${rankedArchived}\n` +
+    `- E列継承: ${inheritedSourceCount}\n` +
+    `- F列継承: ${inheritedPublishCount}\n\n` +
     (preview ? `詳細（先頭20件）:\n${preview}` : `${CFG_SONG_CLEANUP.DRY_RUN ? '対象候補' : '対象'}はありません。`)
   );
 }
@@ -615,13 +624,32 @@ function _yyyymmddToSlash_(s8) {
 
 /***** 追加：歌唱DB整理 ヘルパー *****/
 
-// 同一URL重複用：古い方を残すため古い順で比較
-function _compareOlderFirstForExactDup_(a, b) {
-  const au = a.updatedMs == null ? -Infinity : a.updatedMs;
-  const bu = b.updatedMs == null ? -Infinity : b.updatedMs;
+function _applyDefaultPublishChecks_(sheet, startRow, endRow) {
+  if (!sheet || startRow > endRow) return 0;
 
-  if (au !== bu) return au - bu; // 古い → 新しい
-  return a.row - b.row;          // 上 → 下（下を新しい扱い）
+  const numRows = endRow - startRow + 1;
+  const rows = sheet
+    .getRange(startRow, 1, numRows, CFG_SONG_CLEANUP.COL_PUBLISHED)
+    .getValues();
+  const nextValues = rows.map(row => [row[CFG_SONG_CLEANUP.COL_PUBLISHED - 1]]);
+  let changed = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const artist = _normalizeSongKeyText_(rows[i][CFG_SONG_CLEANUP.COL_ARTIST - 1]);
+    const title = _normalizeSongKeyText_(rows[i][CFG_SONG_CLEANUP.COL_TITLE - 1]);
+    const published = rows[i][CFG_SONG_CLEANUP.COL_PUBLISHED - 1];
+
+    if (!artist || !title || _hasCellData_(published)) continue;
+    nextValues[i][0] = true;
+    changed++;
+  }
+
+  if (changed > 0) {
+    sheet
+      .getRange(startRow, CFG_SONG_CLEANUP.COL_PUBLISHED, numRows, 1)
+      .setValues(nextValues);
+  }
+  return changed;
 }
 
 // どちらを残すべきか比較。aが優先なら正数を返す
@@ -641,15 +669,119 @@ function _compareBetterSongRecord_(a, b) {
   return b.row - a.row;
 }
 
+function _selectSongGroup_(records) {
+  if (!records || records.length === 0) {
+    return { keeper: null, archived: [] };
+  }
+
+  let keeper = records[0];
+  for (let i = 1; i < records.length; i++) {
+    if (_compareBetterSongRecord_(records[i], keeper) > 0) {
+      keeper = records[i];
+    }
+  }
+  return {
+    keeper,
+    archived: records.filter(record => record !== keeper)
+  };
+}
+
+function _buildKeeperInheritance_(keeper, archivedRecords) {
+  const archived = (archivedRecords || [])
+    .slice()
+    .sort((a, b) => _compareBetterSongRecord_(b, a));
+
+  let sourceValue = keeper.sourceValue;
+  let sourceRich = keeper.sourceRich || null;
+  if (!_hasCellData_(sourceValue)) {
+    for (let i = 0; i < archived.length; i++) {
+      if (_hasCellData_(archived[i].sourceValue)) {
+        sourceValue = archived[i].sourceValue;
+        sourceRich = archived[i].sourceRich || null;
+        break;
+      }
+    }
+  }
+
+  let publishedValue = keeper.publishedValue;
+  const allRecords = [keeper].concat(archived);
+  if (allRecords.some(record => _isPublishedCheckEnabled_(record.publishedValue))) {
+    publishedValue = true;
+  } else if (!_hasCellData_(publishedValue)) {
+    for (let i = 0; i < archived.length; i++) {
+      if (_hasCellData_(archived[i].publishedValue)) {
+        publishedValue = archived[i].publishedValue;
+        break;
+      }
+    }
+  }
+
+  return {
+    keeperRow: keeper.row,
+    sourceValue,
+    sourceRich,
+    publishedValue,
+    sourceChanged: sourceValue !== keeper.sourceValue,
+    publishedChanged: publishedValue !== keeper.publishedValue
+  };
+}
+
+function _hasCellData_(value) {
+  return value != null && String(value).trim() !== '';
+}
+
+function _isPublishedCheckEnabled_(value) {
+  if (value === true || value === 1) return true;
+  const normalized = String(value == null ? '' : value).trim().toLowerCase();
+  return normalized === 'true' ||
+    normalized === '1' ||
+    normalized === 'yes' ||
+    normalized === 'on' ||
+    normalized === '✅' ||
+    normalized === '☑';
+}
+
+function _performanceRecordSortSpec_() {
+  return [
+    { column: CFG_SONG_CLEANUP.COL_TITLE, ascending: true },
+    { column: CFG_SONG_CLEANUP.COL_ARTIST, ascending: true },
+    { column: CFG_SONG_CLEANUP.COL_LINK, ascending: false }
+  ];
+}
+
+function _sortPerformanceRecordRows_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < CFG_SONG_CLEANUP.DATA_START_ROW) return 0;
+
+  const numRows = lastRow - CFG_SONG_CLEANUP.DATA_START_ROW + 1;
+  const lastColumn = Math.max(
+    CFG_SONG_CLEANUP.COL_END,
+    sheet.getLastColumn()
+  );
+  sheet
+    .getRange(
+      CFG_SONG_CLEANUP.DATA_START_ROW,
+      CFG_SONG_CLEANUP.COL_START,
+      numRows,
+      lastColumn
+    )
+    .sort(_performanceRecordSortSpec_());
+  return numRows;
+}
+
 function _detectSourceRank_(note) {
   const s = note == null ? '' : String(note).toLowerCase();
 
   let rank = 0;
   if (s.indexOf('歌ってみた') !== -1) rank = Math.max(rank, 300);
+  if (s.indexOf('歌みた') !== -1)       rank = Math.max(rank, 300);
+  if (s.indexOf('cover') !== -1)        rank = Math.max(rank, 300);
   if (s.indexOf('歌枠') !== -1)       rank = Math.max(rank, 200);
+  if (s.indexOf('配信') !== -1)       rank = Math.max(rank, 200);
+  if (s.indexOf('live') !== -1)        rank = Math.max(rank, 200);
+  if (s.indexOf('stream') !== -1)      rank = Math.max(rank, 200);
   if (s.indexOf('ショート') !== -1)   rank = Math.max(rank, 100);
   if (s.indexOf('short') !== -1)      rank = Math.max(rank, 100);
-  if (s.indexOf('shorts') !== -1)     rank = Math.max(rank, 100);
 
   return rank;
 }
@@ -668,10 +800,15 @@ function _extractSongDateNumFromDisplay_(displayText) {
 }
 
 function _normalizeSongKeyText_(v) {
-  return String(v == null ? '' : v)
+  let normalized = String(v == null ? '' : v);
+  if (typeof normalized.normalize === 'function') {
+    normalized = normalized.normalize('NFKC');
+  }
+  return normalized
     .replace(/\u3000/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .toLowerCase();
 }
 
 function _toMsOrNull_(v) {
@@ -733,193 +870,12 @@ function _deleteRowsDescendingInChunks_(sh, rowNumbers) {
   sh.deleteRows(startRow, count);
 }
 
-// 履歴シートの各曲目「最新データ」の C列・E列・G列以降を
-// Performance Record の同一楽曲へ反映する
-function _syncLatestArchiveFieldsToPerformanceRecord_(sourceSheet) {
-  const ss = sourceSheet.getParent();
-  const archive = ss.getSheetByName(CFG_SONG_CLEANUP.ARCHIVE_SHEET_NAME);
-  if (!archive) return { songCount: 0, updatedRowCount: 0, updatedCellCount: 0 };
-
-  const archiveLastRow = archive.getLastRow();
-  if (archiveLastRow <= 1) return { songCount: 0, updatedRowCount: 0, updatedCellCount: 0 };
-
-  const sourceLastRow = sourceSheet.getLastRow();
-  if (sourceLastRow < CFG_SONG_CLEANUP.DATA_START_ROW) {
-    return { songCount: 0, updatedRowCount: 0, updatedCellCount: 0 };
-  }
-
-  const lastCol = Math.max(sourceSheet.getLastColumn(), archive.getLastColumn());
-  const archiveValues = archive.getRange(2, 1, archiveLastRow - 1, lastCol).getValues();
-  const archiveNoteRichValues = archive
-    .getRange(2, CFG_SONG_CLEANUP.COL_NOTE, archiveLastRow - 1, 1)
-    .getRichTextValues();
-
-  // A+B ごとに履歴の最新行を選ぶ（G列日付優先、同値は下の行優先）
-  const latestByKey = {};
-  for (let i = 0; i < archiveValues.length; i++) {
-    const row = archiveValues[i];
-    const artist = _normalizeSongKeyText_(row[CFG_SONG_CLEANUP.COL_ARTIST - 1]);
-    const title = _normalizeSongKeyText_(row[CFG_SONG_CLEANUP.COL_TITLE - 1]);
-    if (!artist || !title) continue;
-
-    const key = artist + '\t' + title;
-    const candidate = {
-      rowIndex: i + 2, // シート行番号
-      rowValues: row,
-      noteRich: archiveNoteRichValues[i] ? archiveNoteRichValues[i][0] : null,
-      updatedMs: _toMsOrNull_(row[CFG_SONG_CLEANUP.COL_UPDATED - 1])
-    };
-
-    const current = latestByKey[key];
-    if (!current) {
-      latestByKey[key] = candidate;
-      continue;
-    }
-
-    const curMs = current.updatedMs == null ? -Infinity : current.updatedMs;
-    const newMs = candidate.updatedMs == null ? -Infinity : candidate.updatedMs;
-    if (newMs > curMs || (newMs === curMs && candidate.rowIndex > current.rowIndex)) {
-      latestByKey[key] = candidate;
-    }
-  }
-
-  const sourceNumRows = sourceLastRow - CFG_SONG_CLEANUP.DATA_START_ROW + 1;
-  const sourceValues = sourceSheet
-    .getRange(CFG_SONG_CLEANUP.DATA_START_ROW, 1, sourceNumRows, lastCol)
-    .getValues();
-  const sourceNoteRange = sourceSheet.getRange(
-    CFG_SONG_CLEANUP.DATA_START_ROW,
-    CFG_SONG_CLEANUP.COL_NOTE,
-    sourceNumRows,
-    1
-  );
-  const sourceNoteRichValues = sourceNoteRange.getRichTextValues();
-  const nextSourceNoteRichValues = sourceNoteRichValues.map(r => [r[0]]);
-
-  // D列のハイパーリンク(RichText)を保持するため、A:G全体の setValues は行わず
-  // C列・E列・G列以降のみ列単位で更新する。
-  const nextColEValues = sourceValues.map(r => [r[4]]);
-  const nextColsFromG = sourceValues.map(r => r.slice(6));
-
-  let updatedRowCount = 0;
-  let updatedCellCount = 0;
-  let hasAnyUpdate = false;
-  for (let i = 0; i < sourceValues.length; i++) {
-    const row = sourceValues[i];
-    const original = row.slice();
-    const artist = _normalizeSongKeyText_(row[CFG_SONG_CLEANUP.COL_ARTIST - 1]);
-    const title = _normalizeSongKeyText_(row[CFG_SONG_CLEANUP.COL_TITLE - 1]);
-    if (!artist || !title) continue;
-
-    const latest = latestByKey[artist + '\t' + title];
-    if (!latest) continue;
-
-    const latestRow = latest.rowValues;
-
-    // C列: 既存値に履歴タグを追記（履歴先頭が 種別タグ の場合は先頭のみスキップ）
-    const mergedNote = _appendArchiveTagsToCurrentNote_(row[2], latestRow[2]);
-    row[2] = mergedNote;
-    const currentNoteRich = sourceNoteRichValues[i] ? sourceNoteRichValues[i][0] : null;
-    const latestNoteRich = latest.noteRich || null;
-    nextSourceNoteRichValues[i][0] =
-      _buildMergedNoteRichText_(mergedNote, currentNoteRich, latestNoteRich);
-    // E列
-    if (lastCol >= 5) {
-      row[4] = latestRow[4];
-      nextColEValues[i][0] = row[4];
-    }
-    // G列以降
-    for (let c = 6; c < lastCol; c++) {
-      row[c] = latestRow[c];
-    }
-    if (lastCol > 6) {
-      nextColsFromG[i] = row.slice(6);
-    }
-
-    if (!_rowsEqual_(row, original)) {
-      hasAnyUpdate = true;
-      updatedRowCount++;
-      if (row[2] !== original[2]) updatedCellCount++;
-      if (lastCol >= 5 && row[4] !== original[4]) updatedCellCount++;
-      for (let c = 6; c < lastCol; c++) {
-        if (row[c] !== original[c]) updatedCellCount++;
-      }
-    }
-  }
-
-  if (hasAnyUpdate) {
-    sourceNoteRange.setRichTextValues(nextSourceNoteRichValues);
-    if (lastCol >= 5) {
-      sourceSheet
-        .getRange(CFG_SONG_CLEANUP.DATA_START_ROW, 5, sourceNumRows, 1)
-        .setValues(nextColEValues);
-    }
-    if (lastCol > 6) {
-      sourceSheet
-        .getRange(CFG_SONG_CLEANUP.DATA_START_ROW, 7, sourceNumRows, lastCol - 6)
-        .setValues(nextColsFromG);
-    }
-  }
-  return {
-    songCount: Object.keys(latestByKey).length,
-    updatedRowCount,
-    updatedCellCount
-  };
-}
-
-function _rowsEqual_(a, b) {
-  if (!a || !b || a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-
-function _appendArchiveTagsToCurrentNote_(currentNote, archiveNote) {
-  const base = _splitTags_(currentNote);
-  const toAppend = _extractArchiveTagsForAppend_(archiveNote);
-  if (toAppend.length === 0) return base.join(',');
-  return base.concat(toAppend).join(',');
-}
-
-function _extractArchiveTagsForAppend_(archiveNote) {
-  const tags = _splitTags_(archiveNote);
-  if (tags.length === 0) return [];
-
-  const first = tags[0];
-  if (first === '歌枠' || first === '歌ってみた' || first === 'ショート') {
-    return tags.slice(1);
-  }
-  return tags;
-}
-
-function _splitTags_(value) {
-  return String(value == null ? '' : value)
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-}
-
 function _cloneRichTextWithFallbackText_(rich, fallbackText) {
   const text = String(fallbackText == null ? '' : fallbackText);
   if (!rich) return SpreadsheetApp.newRichTextValue().setText(text).build();
   const richText = String(rich.getText ? rich.getText() : '');
   if (richText !== text) return SpreadsheetApp.newRichTextValue().setText(text).build();
   return rich.copy().build();
-}
-
-function _buildMergedNoteRichText_(mergedText, currentNoteRich, archiveNoteRich) {
-  const text = String(mergedText == null ? '' : mergedText);
-  const fromCurrent = _cloneRichTextWithFallbackText_(currentNoteRich, text);
-  const fromArchive = _cloneRichTextWithFallbackText_(archiveNoteRich, text);
-
-  const currentUrl = pickUrlFromRich(fromCurrent);
-  if (currentUrl) return fromCurrent;
-
-  const archiveUrl = pickUrlFromRich(fromArchive);
-  if (archiveUrl) return fromArchive;
-
-  return SpreadsheetApp.newRichTextValue().setText(text).build();
 }
 
 /** シート上の図形ボタンに割り当てる入口（任意） */
