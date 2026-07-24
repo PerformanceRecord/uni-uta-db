@@ -2,6 +2,14 @@ name: songs.json 同期（サーバーアップロード）
 
 on:
   workflow_dispatch:
+  push:
+    branches: ['main']
+    paths:
+      - '.github/workflows/sync-songs-to-r2.yml'
+      - 'gas/Code.gs'
+      - 'scripts/build_songs_snapshot.mjs'
+      - 'scripts/lib/songSnapshot.mjs'
+      - 'scripts/sync_songs_to_r2.sh'
   schedule:
     # JST 12:00 = UTC 03:00
     - cron: '0 3 * * *'
