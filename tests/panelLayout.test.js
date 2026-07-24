@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateMiddlePanelInsets,
+  resolveTopMenuCollapsed,
   shouldAutoCollapseTopMenu,
 } from '../src/ui/panelLayout.js';
 
@@ -41,6 +42,29 @@ describe('panel layout', () => {
     expect(shouldAutoCollapseTopMenu({
       mobileLayout: false,
       compactDesktopLayout: true,
+    })).toBe(false);
+  });
+
+  it('モバイルの手動折り畳み状態を自動判定より優先する', () => {
+    expect(resolveTopMenuCollapsed({
+      autoCollapseEnabled: true,
+      manualMode: 'collapsed',
+      beyondThreshold: false,
+    })).toBe(true);
+    expect(resolveTopMenuCollapsed({
+      autoCollapseEnabled: true,
+      manualMode: 'expanded',
+      beyondThreshold: true,
+    })).toBe(false);
+    expect(resolveTopMenuCollapsed({
+      autoCollapseEnabled: true,
+      manualMode: '',
+      beyondThreshold: true,
+    })).toBe(true);
+    expect(resolveTopMenuCollapsed({
+      autoCollapseEnabled: false,
+      manualMode: 'collapsed',
+      beyondThreshold: true,
     })).toBe(false);
   });
 });
