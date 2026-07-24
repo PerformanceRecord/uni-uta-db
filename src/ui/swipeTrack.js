@@ -18,6 +18,25 @@ export function updatePageIndicator(indicator, activeIndex) {
   });
 }
 
+export function updateViewSwitcher(switcher, activeIndex) {
+  if (!switcher) return;
+  const normalizedIndex = clampSwipeIndex(activeIndex);
+  switcher.querySelectorAll('[data-card-index]').forEach((button) => {
+    const isActive = Number(button.dataset.cardIndex) === normalizedIndex;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+  });
+}
+
+export function bindViewSwitcher({ switcher, setCard }) {
+  if (!switcher || typeof setCard !== 'function') return;
+  switcher.querySelectorAll('[data-card-index]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setCard(button.dataset.cardIndex);
+    });
+  });
+}
+
 export function setupSwipeTrack({
   wrap,
   track,

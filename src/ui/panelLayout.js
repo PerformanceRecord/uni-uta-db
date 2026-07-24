@@ -16,3 +16,10 @@ export function calculateMiddlePanelInsets({
     ),
   };
 }
+
+export function shouldAutoCollapseTopMenu({
+  mobileLayout = false,
+  compactDesktopLayout = false,
+} = {}) {
+  return Boolean(mobileLayout && !compactDesktopLayout);
+}

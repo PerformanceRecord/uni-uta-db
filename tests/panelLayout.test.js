@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { calculateMiddlePanelInsets } from '../src/ui/panelLayout.js';
+import {
+  calculateMiddlePanelInsets,
+  shouldAutoCollapseTopMenu,
+} from '../src/ui/panelLayout.js';
 
 describe('panel layout', () => {
   it('楽曲領域を上部バーの下、下部バーの上へ収める', () => {
@@ -24,5 +27,20 @@ describe('panel layout', () => {
       top: 0,
       bottom: 0,
     });
+  });
+
+  it('モバイルだけで上部メニューの自動折り畳みを有効にする', () => {
+    expect(shouldAutoCollapseTopMenu({
+      mobileLayout: true,
+      compactDesktopLayout: false,
+    })).toBe(true);
+    expect(shouldAutoCollapseTopMenu({
+      mobileLayout: true,
+      compactDesktopLayout: true,
+    })).toBe(false);
+    expect(shouldAutoCollapseTopMenu({
+      mobileLayout: false,
+      compactDesktopLayout: true,
+    })).toBe(false);
   });
 });

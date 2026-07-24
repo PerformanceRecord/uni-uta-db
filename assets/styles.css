@@ -757,6 +757,60 @@ a:focus-visible,
   transform: scale(1);
 }
 
+.compact-view-switch {
+  display: none;
+}
+
+@media (max-width: 1099px) and (pointer: fine) {
+  .top-fold-btn,
+  .top-expand-btn {
+    display: none !important;
+  }
+
+  .compact-view-switch {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 3px;
+    border: 1px solid #C5D7DF;
+    border-radius: 12px;
+    background: rgb(235 244 247 / 92%);
+  }
+
+  .compact-view-switch .view-switch-button {
+    min-width: 0;
+    min-height: 34px;
+    padding: 5px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #526878;
+    font-size: 12px;
+    font-weight: 800;
+    box-shadow: none;
+  }
+
+  .compact-view-switch .view-switch-button:hover {
+    background: rgb(255 255 255 / 60%);
+    color: #264758;
+  }
+
+  .compact-view-switch .view-switch-button.active {
+    background: #FFFFFF;
+    color: #12658B;
+    box-shadow:
+      0 2px 7px rgb(44 75 90 / 13%),
+      inset 0 0 0 1px rgb(126 166 184 / 35%);
+  }
+
+  .page-indicator {
+    display: none;
+  }
+}
+
 @keyframes swipe-hint {
   0%,
   68%,
