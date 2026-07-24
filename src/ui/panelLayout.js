@@ -24,6 +24,25 @@ export function shouldAutoCollapseTopMenu({
   return Boolean(mobileLayout && !compactDesktopLayout);
 }
 
+export function isTopMenuBeyondAutoCollapseBoundary({
+  currentlyCollapsed = false,
+  scrollTop = 0,
+  collapseThreshold = 0,
+  expandThreshold = 1,
+} = {}) {
+  const safeScrollTop = Math.max(0, Number(scrollTop) || 0);
+  const safeCollapseThreshold = Math.max(0, Number(collapseThreshold) || 0);
+  const safeExpandThreshold = Math.min(
+    safeCollapseThreshold,
+    Math.max(0, Number(expandThreshold) || 0),
+  );
+  const activeThreshold = currentlyCollapsed
+    ? safeExpandThreshold
+    : safeCollapseThreshold;
+
+  return safeScrollTop > activeThreshold;
+}
+
 export function resolveTopMenuCollapsed({
   autoCollapseEnabled = false,
   manualMode = '',

@@ -326,6 +326,11 @@ a:focus-visible,
   transition: height 0.25s ease;
 }
 
+.top-form.scroll-top-stabilizing .top-swipe-wrap,
+.top-form.scroll-top-stabilizing .top-collapsible {
+  transition: none !important;
+}
+
 .top-form.collapsed .top-swipe-wrap {
   height: var(--top-collapsed-height);
 }

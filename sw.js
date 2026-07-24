@@ -1,9 +1,9 @@
 const CACHE_PREFIX = 'uni-uta-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v10`;
+const CACHE_NAME = `${CACHE_PREFIX}v11`;
 const APP_SHELL = [
   './index.html',
-  './assets/styles.css?v=10',
-  './src/app.js?v=10',
+  './assets/styles.css?v=11',
+  './src/app.js?v=11',
   './src/data/songsApi.js',
   './src/domain/songCatalog.js',
   './src/features/danmaku.js',
@@ -13,11 +13,11 @@ const APP_SHELL = [
   './src/platform/storage.js',
   './src/state/appState.js',
   './src/ui/dom.js',
-  './src/ui/panelLayout.js?v=10',
-  './src/ui/mobileEffects.js?v=10',
-  './src/ui/renderSongs.js?v=10',
+  './src/ui/panelLayout.js?v=11',
+  './src/ui/mobileEffects.js?v=11',
+  './src/ui/renderSongs.js?v=11',
   './src/ui/status.js',
-  './src/ui/swipeTrack.js?v=10',
+  './src/ui/swipeTrack.js?v=11',
   './src/utils/scheduling.js',
   './assets/icons/site.webmanifest',
   './assets/icons/apple-touch-icon.png',
@@ -113,4 +113,3 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(staleWhileRevalidate(request, event));
 });
-
