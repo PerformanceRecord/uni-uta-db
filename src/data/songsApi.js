@@ -1,3 +1,9 @@
+import {
+  readStorageItem,
+  removeStorageItem,
+  writeStorageItem,
+} from '../platform/storage.js';
+
 export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 const DATA_VERSION_PATTERN = /^sha256:[a-f0-9]{64}$/;
@@ -90,24 +96,22 @@ function normalizeCacheEntry(entry) {
 }
 
 export function loadCache({ cacheKey }) {
+  const raw = readStorageItem(cacheKey());
+  if (!raw) return null;
+
   try {
-    const raw = localStorage.getItem(cacheKey());
-    return raw ? JSON.parse(raw) : null;
+    return JSON.parse(raw);
   } catch (_) {
     return null;
   }
 }
 
 export function saveCache(entry, { cacheKey }) {
-  try {
-    localStorage.setItem(cacheKey(), JSON.stringify(entry));
-  } catch (_) {}
+  return writeStorageItem(cacheKey(), JSON.stringify(entry));
 }
 
 export function clearApiCache({ cacheKey }) {
-  try {
-    localStorage.removeItem(cacheKey());
-  } catch (_) {}
+  return removeStorageItem(cacheKey());
 }
 
 export function isSameOriginRequest(url) {
