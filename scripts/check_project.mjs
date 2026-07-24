@@ -15,6 +15,7 @@ const runtimeJavaScriptFiles = [
   'src/platform/storage.js',
   'src/state/appState.js',
   'src/ui/dom.js',
+  'src/ui/mobileEffects.js',
   'src/ui/panelLayout.js',
   'src/ui/renderSongs.js',
   'src/ui/status.js',
@@ -134,3 +135,4 @@ main().catch((error) => {
   console.error(error.message);
   process.exitCode = 1;
 });
+

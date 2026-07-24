@@ -1,7 +1,7 @@
 import { state, DEFAULT_KINDS } from './state/appState.js';
 import { byId } from './ui/dom.js';
 import { setStatus, setLoadingStatus, setRunningStatus, setStoppedStatus, setErrorStatus } from './ui/status.js';
-import { render } from './ui/renderSongs.js';
+import { render } from './ui/renderSongs.js?v=10';
 import { load } from './data/songsApi.js';
 import {
   bestExternalUrl,
@@ -37,12 +37,18 @@ import {
   setupSwipeTrack,
   updatePageIndicator,
   updateViewSwitcher,
-} from './ui/swipeTrack.js?v=9';
+} from './ui/swipeTrack.js?v=10';
+import {
+  playMobileCardRipple,
+  renderMobileLoadingSkeleton,
+  showMobileCopyFeedback,
+  updateMobileScrollProgress,
+} from './ui/mobileEffects.js?v=10';
 import {
   calculateMiddlePanelInsets,
   resolveTopMenuCollapsed,
   shouldAutoCollapseTopMenu,
-} from './ui/panelLayout.js?v=9';
+} from './ui/panelLayout.js?v=10';
 import { debounce, rafThrottle } from './utils/scheduling.js';
 
 const CACHE_PREFIX = 'songs-cache-v3';
@@ -65,6 +71,7 @@ const toast = byId('toast');
 const errorLogWrap = byId('errorLogWrap');
 const errorLog = byId('errorLog');
 const scrollBubbles = byId('scrollBubbles');
+const mobileScrollProgress = byId('mobileScrollProgress');
 const statusShell = byId('statusShell');
 const installHelpPopover = byId('installHelpPopover');
 const installHelpBody = byId('installHelpBody');
@@ -89,6 +96,39 @@ function showToast(text, durationMs = 300) {
   toastTimer = window.setTimeout(() => {
     toast.classList.remove('show');
   }, durationMs);
+}
+
+function isMobileEffectsLayout() {
+  return isMobileLayout() && !isCompactDesktopLayout();
+}
+
+function triggerMobileCardRipple(card, event) {
+  return playMobileCardRipple({
+    card,
+    event,
+    enabled: isMobileEffectsLayout(),
+  });
+}
+
+function triggerMobileCopyFeedback(target) {
+  return showMobileCopyFeedback({
+    target,
+    enabled: isMobileEffectsLayout(),
+  });
+}
+
+function refreshMobileScrollProgress() {
+  return updateMobileScrollProgress({
+    rows,
+    progressElement: mobileScrollProgress,
+    enabled: isMobileEffectsLayout(),
+  });
+}
+
+function syncMobileEffectsMode() {
+  const enabled = isMobileEffectsLayout();
+  document.body.classList.toggle('mobile-effects', enabled);
+  refreshMobileScrollProgress();
 }
 
 function clipText(value, max = MAX_ERROR_BODY_CHARS) {
@@ -467,11 +507,19 @@ const renderDeps = {
   isInteractiveTarget,
   copyTextToClipboard,
   showToast,
+  showCopyFeedback: triggerMobileCopyFeedback,
   collapseExpandedCards,
   isMobileLayout,
+  playCardRipple: triggerMobileCardRipple,
+  searchQuery: () => state.q,
   resolveSingingTag,
   bestExternalUrl,
 };
+
+function renderSongList(items, totals) {
+  render(items, totals, renderDeps);
+  window.requestAnimationFrame(refreshMobileScrollProgress);
+}
 
 function loadSongs() {
   const requestCandidates = [
@@ -479,6 +527,10 @@ function loadSongs() {
     ...SONGS_JSON_FALLBACK_URLS,
     ...(ENABLE_GAS_FALLBACK ? [GAS_SONGS_API_URL] : []),
   ].filter(Boolean);
+  renderMobileLoadingSkeleton({
+    rows,
+    enabled: isMobileEffectsLayout() && !hasSourceItemsCache,
+  });
   return load({
     setLoadingStatus,
     clearErrorLog,
@@ -486,7 +538,7 @@ function loadSongs() {
     setStoppedStatus,
     setRunningStatus,
     filterItems,
-    render: (items, totals) => render(items, totals, renderDeps),
+    render: renderSongList,
     headersToObject,
     clipText,
     cacheKey: songsCacheKey,
@@ -499,13 +551,16 @@ function loadSongs() {
     sourceTotalCache = Number(result.total ?? sourceItemsCache.length);
     hasSourceItemsCache = true;
     return result;
+  }).finally(() => {
+    rows?.removeAttribute('aria-busy');
+    window.requestAnimationFrame(refreshMobileScrollProgress);
   });
 }
 
 function rerenderFromLocalCache() {
   if (!hasSourceItemsCache) return false;
   const filteredItems = filterItems(sourceItemsCache);
-  render(filteredItems, { total: sourceTotalCache }, renderDeps);
+  renderSongList(filteredItems, { total: sourceTotalCache });
   setRunningStatus(filteredItems.length, sourceTotalCache);
   return true;
 }
@@ -523,6 +578,7 @@ async function copyMemo() {
 
     return;
   }
+  triggerMobileCopyFeedback(byId('copyMemo'));
   showToast('コピーしました');
 
 }
@@ -570,6 +626,7 @@ async function copyDanmaku() {
 
   const copied = await copyTextToClipboard(text.trim());
   if (copied) {
+    triggerMobileCopyFeedback(byId('copyDanmaku'));
     showToast('弾幕をコピーしました');
   }
 }
@@ -590,6 +647,8 @@ function toggleKind(kind) {
 }
 
 function bind() {
+  syncMobileEffectsMode();
+
   if (!ENABLE_ERROR_LOG_UI) {
     errorLogWrap.hidden = true;
   }
@@ -661,6 +720,7 @@ function bind() {
     const copied = await copyTextToClipboard(text);
 
     setSwipeCard(0);
+    if (copied) triggerMobileCopyFeedback(byId('saveMyDanmaku'));
     showToast(copied ? '弾幕を作成してコピーしました' : '弾幕を作成しました');
 
   });
@@ -747,6 +807,7 @@ function bind() {
   };
 
   const scheduleViewportLayoutUpdate = rafThrottle(() => {
+    syncMobileEffectsMode();
     updateTopFormCollapseByScroll();
     updateScrollTopOffset();
   });
@@ -825,6 +886,7 @@ function bind() {
     previousRowsScrollTop = rows.scrollTop;
     lastRowsBubbleAt = now;
 
+    refreshMobileScrollProgress();
     scheduleRowsScrollUpdate();
   });
 
@@ -832,6 +894,7 @@ function bind() {
   const media = window.matchMedia('(max-width: 768px)');
   const handleMobileLayoutChange = () => {
     collapseExpandedCards();
+    syncMobileEffectsMode();
     updateScrollTopOffset();
   };
   if (typeof media.addEventListener === 'function') {
@@ -870,3 +933,4 @@ export function initializeApp() {
 }
 
 export { bind, setupTopSwipe, setupBottomSwipe };
+

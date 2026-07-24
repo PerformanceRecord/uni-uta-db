@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   extractVideoPreview,
   getSongCardToggleState,
+  highlightSearchMatch,
 } from '../src/ui/renderSongs.js';
 
 describe('song card preview', () => {
@@ -63,4 +64,19 @@ describe('song card preview', () => {
       previewVisible: false,
     });
   });
+
+  it('検索語だけを安全なmark要素で強調する', () => {
+    expect(highlightSearchMatch('Blue & Blue', 'blue')).toBe(
+      '<mark class="search-match">Blue</mark> &amp; '
+      + '<mark class="search-match">Blue</mark>',
+    );
+    expect(highlightSearchMatch('<script>', 'script')).toBe(
+      '&lt;<mark class="search-match">script</mark>&gt;',
+    );
+  });
+
+  it('検索語が空の場合は強調せずHTMLエスケープだけを行う', () => {
+    expect(highlightSearchMatch('A & B', '')).toBe('A &amp; B');
+  });
 });
+

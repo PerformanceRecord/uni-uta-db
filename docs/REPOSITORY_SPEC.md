@@ -23,7 +23,8 @@
 | `src/features/scrollBubbles.js` | 泡強度・個数・DOM生成 |
 | `src/platform/clipboard.js` | Clipboard APIとtextareaフォールバック |
 | `src/platform/pwa.js` | Service Worker登録、PWAインストール案内 |
-| `src/ui/renderSongs.js` | 楽曲カード描画 |
+| `src/ui/mobileEffects.js` | モバイル限定装飾、スケルトン、スクロール進捗 |
+| `src/ui/renderSongs.js` | 楽曲カード描画、検索語ハイライト |
 | `src/ui/swipeTrack.js` | 2面スワイプとページインジケータ |
 | `src/utils/scheduling.js` | debounce、requestAnimationFrameスロットリング |
 | `sw.js` | 同一オリジンのアプリシェルキャッシュ |
@@ -59,6 +60,9 @@
 - スクロール・リサイズ由来のレイアウト計測は1フレーム1回
 - 泡は最大90個
 - PCのfine pointer環境ではスクロール泡演出を停止
+- モバイル装飾はtouch-firstレイアウトだけで有効化
+- スクロール水位線は既存scrollイベント内でCSS変数だけを更新
+- 水面光は画像・通信・常時アニメーションを使わない静的CSS
 - 楽曲のフィルタ・並び替えは入力配列を変更しない純粋関数
 
 ### 3.3 Service Worker
@@ -135,3 +139,4 @@ PRワークフローはread-only権限、10分タイムアウト、同一PRの�
 - モバイル／ブラウザの既存操作対象を変更しない
 - 重複データを自動選択して公開しない
 - GASまたはsnapshot検証失敗時に既存R2データを上書きしない
+

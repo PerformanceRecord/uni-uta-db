@@ -10,6 +10,33 @@ export function escapeHtml(text) {
     .replaceAll("'", '&#39;');
 }
 
+export function highlightSearchMatch(text, query = '') {
+  const value = String(text ?? '');
+  const needle = String(query ?? '').trim();
+  if (!needle) return escapeHtml(value);
+
+  const normalizedValue = value.toLocaleLowerCase('ja');
+  const normalizedNeedle = needle.toLocaleLowerCase('ja');
+  const parts = [];
+  let cursor = 0;
+
+  while (cursor < value.length) {
+    const matchAt = normalizedValue.indexOf(normalizedNeedle, cursor);
+    if (matchAt < 0) break;
+    parts.push(escapeHtml(value.slice(cursor, matchAt)));
+    parts.push(
+      `<mark class="search-match">${escapeHtml(
+        value.slice(matchAt, matchAt + needle.length),
+      )}</mark>`,
+    );
+    cursor = matchAt + needle.length;
+  }
+
+  if (cursor === 0) return escapeHtml(value);
+  parts.push(escapeHtml(value.slice(cursor)));
+  return parts.join('');
+}
+
 function splitSingingTags(text) {
   return String(text || '')
     .split(',')
@@ -136,18 +163,23 @@ export function render(items, totals = {}, deps = {}) {
     isInteractiveTarget,
     copyTextToClipboard,
     showToast,
+    showCopyFeedback = () => {},
     collapseExpandedCards,
     isMobileLayout = () => false,
+    playCardRipple = () => {},
+    searchQuery = () => '',
     resolveSingingTag,
     bestExternalUrl,
   } = deps;
 
   selectedCount.textContent = String(items.length);
   totalCount.textContent = String(totals.total ?? items.length);
+  const activeSearchQuery = searchQuery();
 
   if (!items.length) {
     rows.innerHTML = '<div class="muted">該当データがありません</div><div class="dummy-end-card">--- END --- <a href="https://lit.link/unisuke" target="_blank" rel="noopener noreferrer">https://lit.link/unisuke</a></div>';
     rows.dataset.selected = '{}';
+    rows.removeAttribute('aria-busy');
     state.selectedSongId = '';
     return;
   }
@@ -182,7 +214,7 @@ export function render(items, totals = {}, deps = {}) {
       ? `<div class="song-preview-wrap"><a class="song-preview-card song-detail-link" href="${escapeHtml(encodeURI(detailLinks.detailUrl))}" target="_blank" rel="noopener noreferrer" title="${fallbackLinkLabel}"><img class="song-preview-image" src="${escapeHtml(preview.thumbnailUrl)}" alt="${escapeHtml(preview.type)}のサムネイル" loading="lazy" referrerpolicy="${escapeHtml(preview.referrerPolicy || 'no-referrer')}" data-fallback-thumbnail="${escapeHtml(preview.fallbackThumbnailUrl || '')}" /><p class="song-preview-label">${escapeHtml(preview.type)}</p></a></div>`
       : '';
     const cardClassName = cardKindClass ? `${SONG_CARD_CLASS_NAMES} ${cardKindClass}` : SONG_CARD_CLASS_NAMES;
-    return `<article class="${cardClassName}" data-id="${id}" tabindex="0"><div class="song-card-main"><div class="song-head"><div class="song-summary"><div class="song-mobile-meta" aria-hidden="true"><span class="song-kind-label">${mobileKindLabel}</span><span class="song-mobile-date">${latestDate}</span></div><div class="song-title">${escapeHtml(item.title || '-')}</div><div class="song-artist">${escapeHtml(item.artist || '-')}</div></div><button class="icon-btn copy-text-btn" type="button" data-copy-kind="song-artist" title="楽曲名 / アーティスト名をコピー" aria-label="楽曲名 / アーティスト名をコピー"><span class="copy-button-icon" aria-hidden="true">⧉</span><span>コピー</span></button></div><div class="song-details"><div class="song-meta"><div class="song-meta-top"><div>${singingTagHtml}</div><div class="song-meta-latest">Latest: ${latestDate}</div></div><div class="song-link-row">${fallbackLinkHtml}</div>${previewHtml}</div></div></div></article>`;
+    return `<article class="${cardClassName}" data-id="${id}" tabindex="0"><div class="song-card-main"><div class="song-head"><div class="song-summary"><div class="song-mobile-meta" aria-hidden="true"><span class="song-kind-label">${mobileKindLabel}</span><span class="song-mobile-date">${latestDate}</span></div><div class="song-title">${highlightSearchMatch(item.title || '-', activeSearchQuery)}</div><div class="song-artist">${highlightSearchMatch(item.artist || '-', activeSearchQuery)}</div></div><button class="icon-btn copy-text-btn" type="button" data-copy-kind="song-artist" title="楽曲名 / アーティスト名をコピー" aria-label="楽曲名 / アーティスト名をコピー"><span class="copy-button-icon" aria-hidden="true">⧉</span><span>コピー</span></button></div><div class="song-details"><div class="song-meta"><div class="song-meta-top"><div>${singingTagHtml}</div><div class="song-meta-latest">Latest: ${latestDate}</div></div><div class="song-link-row">${fallbackLinkHtml}</div>${previewHtml}</div></div></div></article>`;
   }).join('');
 
   rows.innerHTML = cardsHtml + '<div class="dummy-end-card">--- END --- <a href="https://lit.link/unisuke" target="_blank" rel="noopener noreferrer">https://lit.link/unisuke</a></div>';
@@ -233,10 +265,15 @@ export function render(items, totals = {}, deps = {}) {
         evt.preventDefault();
         evt.stopPropagation();
         const text = [String(item.title || '').trim(), String(item.artist || '').trim()].filter(Boolean).join(' / ');
-        copyTextToClipboard(text).then((copied) => { if (copied) showToast('コピーしました'); });
+        copyTextToClipboard(text).then((copied) => {
+          if (!copied) return;
+          showCopyFeedback(targetEl);
+          showToast('コピーしました');
+        });
         return;
       }
 
+      playCardRipple(el, evt);
       select();
       toggleExpanded();
     });
@@ -272,4 +309,6 @@ export function render(items, totals = {}, deps = {}) {
     }
   }
 
+  rows.removeAttribute('aria-busy');
 }
+

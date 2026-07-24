@@ -2668,3 +2668,251 @@ button.song-date-link {
     padding-left: 7px;
   }
 }
+
+/*
+ * Lightweight decorative feedback.
+ * The water-light layer is shared by every layout. Interactive effects are
+ * enabled only when JavaScript identifies the touch-first mobile layout.
+ */
+.water-light {
+  position: fixed;
+  z-index: 0;
+  inset: -4%;
+  pointer-events: none;
+  contain: strict;
+  background-image:
+    repeating-radial-gradient(
+      ellipse at 18% -12%,
+      transparent 0 26px,
+      rgb(255 255 255 / 22%) 28px 30px,
+      transparent 33px 62px
+    ),
+    repeating-radial-gradient(
+      ellipse at 82% 112%,
+      transparent 0 34px,
+      rgb(102 210 229 / 14%) 36px 38px,
+      transparent 41px 76px
+    );
+  background-position: 0 0, 92px 38px;
+  background-size: 290px 190px, 360px 230px;
+  mix-blend-mode: soft-light;
+  opacity: 0.24;
+  transform: rotate(-2deg) scale(1.04);
+}
+
+.search-match {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.mobile-scroll-progress {
+  display: none;
+}
+
+.skeleton-card {
+  display: none;
+}
+
+.mobile-effects .mobile-scroll-progress {
+  --list-scroll-progress: 0;
+  position: absolute;
+  z-index: 18;
+  top: 3px;
+  right: 1px;
+  bottom: 3px;
+  display: block;
+  width: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 22%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.mobile-effects .mobile-scroll-progress.visible {
+  opacity: 0.82;
+}
+
+.mobile-effects .mobile-scroll-progress > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #BDEEFF 0%, #42A9CB 68%, #19789C 100%);
+  box-shadow: 0 0 7px rgb(124 221 245 / 58%);
+  transform: scaleY(var(--list-scroll-progress));
+  transform-origin: 50% 0;
+}
+
+.mobile-effects .song-card-main {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  isolation: isolate;
+}
+
+.mobile-effects .song-card-main::after {
+  content: "";
+  position: absolute;
+  z-index: 6;
+  width: 44px;
+  height: 44px;
+  left: calc(var(--tap-ripple-x, 50%) - 22px);
+  top: calc(var(--tap-ripple-y, 42px) - 22px);
+  border: 1px solid rgb(255 255 255 / 74%);
+  border-radius: 50%;
+  background: rgb(91 195 220 / 18%);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.15);
+}
+
+.mobile-effects .song-card.tap-ripple .song-card-main::after {
+  animation: mobile-tap-ripple 0.5s ease-out;
+}
+
+@keyframes mobile-tap-ripple {
+  0% {
+    opacity: 0.28;
+    transform: scale(0.15);
+  }
+  70% {
+    opacity: 0.11;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(14);
+  }
+}
+
+.mobile-effects .copy-success {
+  animation: mobile-copy-success 0.46s ease-out;
+}
+
+@keyframes mobile-copy-success {
+  0% {
+    box-shadow: 0 0 0 0 rgb(70 190 171 / 0%);
+  }
+  40% {
+    box-shadow:
+      0 0 0 4px rgb(255 255 255 / 72%),
+      0 0 0 8px rgb(70 190 171 / 38%);
+  }
+  100% {
+    box-shadow: 0 0 0 11px rgb(70 190 171 / 0%);
+  }
+}
+
+.mobile-effects .song-preview-wrap {
+  display: flex;
+  max-height: 0;
+  margin-top: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px) scale(0.985);
+  transform-origin: 50% 0;
+  transition:
+    max-height 0.24s ease,
+    margin-top 0.24s ease,
+    opacity 0.2s ease 0.03s,
+    transform 0.24s ease;
+}
+
+.mobile-effects .song-card.preview-visible .song-preview-wrap {
+  max-height: min(56vw, 320px);
+  margin-top: var(--space-1);
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.mobile-effects .search-match {
+  margin: 0 -1px;
+  padding: 0 1px;
+  border-radius: 3px;
+  background:
+    linear-gradient(
+      180deg,
+      transparent 42%,
+      rgb(255 212 112 / 68%) 42% 92%,
+      transparent 92%
+    );
+  color: inherit;
+}
+
+.mobile-effects .skeleton-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px;
+  grid-template-rows: 18px 17px 13px;
+  align-content: center;
+  gap: 5px 10px;
+  min-height: 74px;
+  pointer-events: none;
+}
+
+.mobile-effects .skeleton-card::before {
+  opacity: 0.34;
+}
+
+.mobile-effects .skeleton-card > span {
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #DCE9ED;
+  animation: mobile-skeleton-breathe 1.35s ease-in-out infinite;
+  animation-delay: calc(var(--skeleton-index, 0) * 0.08s);
+}
+
+.mobile-effects .skeleton-kind {
+  grid-column: 1;
+  width: 68px;
+}
+
+.mobile-effects .skeleton-title {
+  grid-column: 1;
+  width: min(78%, 290px);
+}
+
+.mobile-effects .skeleton-artist {
+  grid-column: 1;
+  width: min(54%, 190px);
+}
+
+.mobile-effects .skeleton-card::after {
+  content: "";
+  grid-column: 2;
+  grid-row: 1 / 4;
+  width: 58px;
+  height: 44px;
+  align-self: center;
+  border-radius: 13px;
+  background: #D3E4E9;
+  animation: mobile-skeleton-breathe 1.35s ease-in-out infinite;
+  animation-delay: calc(var(--skeleton-index, 0) * 0.08s);
+}
+
+@keyframes mobile-skeleton-breathe {
+  0%,
+  100% {
+    opacity: 0.46;
+  }
+  50% {
+    opacity: 0.92;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-effects .song-card.tap-ripple .song-card-main::after,
+  .mobile-effects .copy-success,
+  .mobile-effects .skeleton-card > span,
+  .mobile-effects .skeleton-card::after {
+    animation: none !important;
+  }
+
+  .mobile-effects .song-preview-wrap,
+  .mobile-effects .mobile-scroll-progress {
+    transition: none;
+  }
+}
