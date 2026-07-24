@@ -79,7 +79,7 @@ describe('danmaku', () => {
     expect(loadMyDanmakuCache({
       storage,
       cacheKey: 'test',
-      now: () => 6_001,
+      now: () => 6_000,
     })).toBe('');
     expect(storage.removeItem).toHaveBeenCalledWith('test');
   });
