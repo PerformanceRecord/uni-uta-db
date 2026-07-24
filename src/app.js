@@ -33,8 +33,10 @@ import {
   setupInstallHelpPopover,
 } from './platform/pwa.js';
 import {
+  bindViewSwitcher,
   setupSwipeTrack,
   updatePageIndicator,
+  updateViewSwitcher,
 } from './ui/swipeTrack.js';
 import { calculateMiddlePanelInsets } from './ui/panelLayout.js';
 import { debounce, rafThrottle } from './utils/scheduling.js';
@@ -198,6 +200,7 @@ function setupTopSwipe() {
   const memoInput = byId('memoInput');
   const topForm = byId('topForm');
   const topPageIndicator = byId('topPageIndicator');
+  const topViewSwitcher = byId('topViewSwitcher');
   const collapseButton = byId('collapseTopMenu');
   const expandButton = byId('expandTopMenu');
 
@@ -210,6 +213,7 @@ function setupTopSwipe() {
     onCardChange: (index) => {
       topSwipeCardIndex = index;
       updatePageIndicator(topPageIndicator, index);
+      updateViewSwitcher(topViewSwitcher, index);
       const isMemo = index === 1;
       topForm?.classList.toggle('memo-active', isMemo);
       if (isMemo) {
@@ -222,6 +226,10 @@ function setupTopSwipe() {
   });
   setTopSwipeCard = topSwipe.setCard;
   getTopSwipeCard = topSwipe.getCurrent;
+  bindViewSwitcher({
+    switcher: topViewSwitcher,
+    setCard: topSwipe.setCard,
+  });
 
   if (memoInput) {
     memoInput.addEventListener('focus', () => {
@@ -249,6 +257,7 @@ function setupBottomSwipe() {
   if (!wrap || !track) return;
 
   const bottomPageIndicator = byId('bottomPageIndicator');
+  const bottomViewSwitcher = byId('bottomViewSwitcher');
   const stopHint = () => {
     track.classList.remove('hinting');
   };
@@ -269,9 +278,14 @@ function setupBottomSwipe() {
     allowInteractiveStart: true,
     onCardChange: (index) => {
       updatePageIndicator(bottomPageIndicator, index);
+      updateViewSwitcher(bottomViewSwitcher, index);
     },
   });
   const setCard = bottomSwipe.setCard;
+  bindViewSwitcher({
+    switcher: bottomViewSwitcher,
+    setCard,
+  });
 
   track.addEventListener('pointerdown', () => {
     stopHint();
