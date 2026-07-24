@@ -1,185 +1,137 @@
-# リポジトリ構成・仕様書
+# リポジトリ構成・内部仕様
 
-本書は、`uni-uta-db` リポジトリの**現状実装**を整理した仕様書です。既存の `README.md` と矛盾しないよう、Worker 非依存（R2 直接参照）構成を前提に記述します。
+本書は第一段階の内部改修完了時点における `uni-uta-db` の実装仕様です。UIの見た目は `index.html` と `src/ui/renderSongs.js` を正とし、データ経路はWorker非依存のR2直接参照を前提とします。
 
 ## 1. システム全体像
 
-このリポジトリは、次の流れで動作します。
+1. Googleスプレッドシート `Performance Record` を `gas/Code.gs` がJSON化
+2. GitHub ActionsがGASを取得
+3. `scripts/build_songs_snapshot.mjs` がデータ契約を検証し `dataVersion` を生成
+4. `scripts/sync_songs_to_r2.sh` が差分のある場合だけR2へアップロード
+5. アップロード後にR2から読み戻し、ローカルsnapshotと完全一致することを確認
+6. ブラウザがR2の `songs.json` を直接取得して表示
 
-1. Google スプレッドシート（`Performance Record`）を GAS (`gas/Code.gs`) が JSON 化
-2. GitHub Actions (`.github/workflows/sync-songs-to-r2.yml`) が定期的に JSON を取得
-3. シェルスクリプト (`scripts/sync_songs_to_r2.sh`) が Cloudflare R2 に `songs.json` をアップロード
-4. フロントエンド（`index.html` + `src/*.js`）が R2 の `songs.json` を直接 `fetch` して表示
+## 2. 主要ファイル
 
-> 補足: 実運用は Worker を必須としない構成です（R2 直接参照）。
-
----
-
-## 2. リポジトリ構成（トップレベル）
-
-| パス | 役割 |
+| パス | 責務 |
 |---|---|
-| `index.html` | 画面本体（HTML + CSS + モジュール初期化） |
-| `src/app.js` | フロント全体の制御（イベント、状態反映、読み込み開始、描画連携） |
-| `src/data/songsApi.js` | `songs.json` 取得処理（候補URL順試行・キャッシュ利用・エラーハンドリング） |
-| `src/ui/renderSongs.js` | 楽曲一覧DOM描画 |
-| `src/ui/status.js` | 接続状態表示（読込中/稼働中/停止/エラー） |
-| `src/ui/dom.js` | DOM参照ユーティリティ |
-| `src/state/appState.js` | クライアント状態・種別マッピング定義 |
-| `gas/Code.gs` | スプレッドシートを JSON (`items`) に整形して返す Web アプリ |
-| `.github/workflows/sync-songs-to-r2.yml` | GAS → R2 同期の CI/CD |
-| `scripts/sync_songs_to_r2.sh` | 同期本体（取得・JSON検証・R2アップロード） |
-| `scripts/verify_r2_upload_and_read.sh` | 切り分け検証（取得/アップロード/読み戻し） |
-| `assets/icons/*` | ファビコン・PWA関連アセット |
-| `README.md` | セットアップ・運用手順の一次ドキュメント |
-| `WORKERLESS_CHECK.md` | Worker非依存導線の点検メモ |
+| `index.html` | HTML、CSS、モジュール初期化 |
+| `src/app.js` | DOMイベントと各モジュールの調停 |
+| `src/data/songsApi.js` | R2取得、JSON検証、キャッシュ、フォールバック |
+| `src/domain/songCatalog.js` | 分類、検索、並び替え、URL・日付正規化 |
+| `src/features/danmaku.js` | 弾幕Unicode処理、生成、15分TTLキャッシュ |
+| `src/features/scrollBubbles.js` | 泡強度・個数・DOM生成 |
+| `src/platform/clipboard.js` | Clipboard APIとtextareaフォールバック |
+| `src/platform/pwa.js` | Service Worker登録、PWAインストール案内 |
+| `src/ui/renderSongs.js` | 楽曲カード描画 |
+| `src/ui/swipeTrack.js` | 2面スワイプとページインジケータ |
+| `src/utils/scheduling.js` | debounce、requestAnimationFrameスロットリング |
+| `sw.js` | 同一オリジンのアプリシェルキャッシュ |
+| `gas/Code.gs` | シートからAPI payloadを生成 |
+| `sheet_scripts/performance_record.gs` | シート編集・重複整理・履歴処理 |
+| `scripts/lib/songSnapshot.mjs` | R2保存前の厳格なデータ契約 |
+| `scripts/check_project.mjs` | JS/GAS/JSON/Service Worker参照の静的検証 |
 
----
+## 3. フロントエンド初期化
 
-## 3. フロントエンド仕様（HTML/CSS/JS）
+`index.html` は次の順に実行します。
 
-### 3.1 HTML 配置仕様（どのように配置しているか）
+1. `bind()`
+2. `setupTopSwipe()`
+3. `setupBottomSwipe()`
+4. `initializeApp()`
 
-`index.html` は 1 ページ構成で、主に **上段（絞り込み・メモ）/中段（一覧）/下段（検索・弾幕）** の3層です。
+`app.js` は状態を `src/state/appState.js` へ集約し、楽曲の判定規則やブラウザAPI実装を内部に重複保持しません。
 
-- `main#songsPage.container` がアプリ全体のコンテナ
-- 上段: `.top-form` 内に `#topSwipeTrack`（2枚カード）
-  - 1枚目: 絞り込みカード（ステータス、件数、チェックボックス、並び替え）
-  - 2枚目: メモカード（`#memoInput`）
-- 中段: `.middle-form` 内 `#rows.song-cards`（楽曲カードの描画先）
-- 下段: `.bottom-form` 内に `#bottomSwipeTrack`（2枚カード）
-  - 1枚目: 検索カード（`#q`, `#clear`）
-  - 2枚目: マイ弾幕作成カード（`#myEmoji`, `#saveMyDanmaku`）
-  - 固定コントロール: 弾幕セレクト `#danmakuType` + コピー `#copyDanmaku`
+### 3.1 データ取得
 
-配置の要点:
+- 候補URLを優先順に試行
+- 1候補15秒でタイムアウト
+- ネットワークエラー、404、408、429、5xxでは次候補へ移行
+- スキーマバージョン、件数、`dataVersion` を検証
+- ETagの有無にかかわらずlocalStorageへ保存
+- キャッシュ表示後、同じ `dataVersion` なら再描画を省略
+- 通信失敗時も検証済みキャッシュの表示を継続
 
-- モバイル操作を重視し、上段・下段ともに**横スワイプで 2 ページ切替**
-- 一覧は `#rows` で独立スクロールし、スクロール量に応じて上段の折りたたみを制御
-- 表示高さは CSS カスタムプロパティ（`--top-expanded-height` など）と JS 再計算で同期
-- ステータス表示 (`#statusShell`) とエラーログ (`#errorLogWrap`) は上段に集約
+### 3.2 負荷制御
 
-### 3.2 CSS レイアウト仕様（実装方針）
+- 検索入力は120ms debounce
+- スクロール・リサイズ由来のレイアウト計測は1フレーム1回
+- 泡は最大90個
+- PCのfine pointer環境ではスクロール泡演出を停止
+- 楽曲のフィルタ・並び替えは入力配列を変更しない純粋関数
 
-- `body` はフルハイト（`100dvh`）で背景グラデーション固定
-- `body::before/::after` で泡アニメーションを重ねる
-- 主要パネルは `card` デザインで統一（角丸 + 枠線 + 余白）
-- `top/middle/bottom` はレスポンシブに再配置され、モバイル時はトップの折りたたみやカード展開制御を強める
-- スクロール終端の被り防止用にダミー高さ（`--dummy-end-card-height` など）を使用
+### 3.3 Service Worker
 
----
+- 画面遷移はnetwork-first
+- JS、manifest、アイコンはstale-while-revalidate
+- R2など別オリジンと `songs.json` には介入しない
+- activate時に旧 `uni-uta-shell-*` キャッシュを削除
 
-## 4. フロント処理順序（どの順番で処理を行っているか）
+## 4. GASデータ仕様
 
-以下は、ページロード後の実行順序です。
+- 対象シート: `Performance Record`
+- ヘッダー: 3行目
+- データ開始: 4行目
+- 読み取り列: A〜F
+- 掲載条件: F列が `TRUE / 1 / ✅ / ☑` 等
+- チェック済み行はA列アーティスト、B列曲名が必須
+- C列を種別・備考、D列を日付・タイトル・リンクとして使用
+- E列はWeb表示に含めない
 
-1. `index.html` の `<script type="module">` が `src/app.js` を import
-2. 初期化呼び出しを**この順**で実行
-   - `bind()`
-   - `setupTopSwipe()`
-   - `setupBottomSwipe()`
-   - `initializeApp()`
+種別優先度は `歌ってみた > 歌枠 > ショート` です。D列にURLや日付があっても、C列が歌ってみたなら `cover` を維持します。
 
-### 4.1 `bind()` の責務
+次はAPI生成を停止するデータ契約違反です。
 
-- 入力イベントを全て接続
-  - 検索文字、種別チェック、ソート項目/順、クリア
-  - 弾幕コピー、メモコピー/ペースト、エラーログコピー
-- スクロール/リサイズ時の再計算を接続
-  - 上段の折りたたみ判定
-  - パネル位置合わせ、ダミー高さ更新
-  - バブル演出
-- メディアクエリ変化（モバイル⇔PC）に追従
+- A+Bの重複（NFKC、大文字小文字、連続空白を正規化）
+- チェック済み行のA/B欠損
+- 存在しない `YYYYMMDD`
+- 必要列不足
 
-### 4.2 `setupTopSwipe()` / `setupBottomSwipe()` の責務
+エラーは `SONGS_BUILD_FAILED` を含むJSONで返し、同期処理がR2更新前に停止します。
 
-- それぞれのスワイプトラックに Pointer イベントを設定
-- しきい値を超えたドラッグでカード index を切替
-- ページインジケータ（ドット）を同期
-- 上段はメモフォーカス時に2枚目へ遷移、折りたたみ状態とも連携
-- 下段はヒントアニメーションを一定間隔で再提示
+Webアプリ実行時のスプレッドシートはScript Propertiesの `SPREADSHEET_ID` を優先し、未設定時のみ互換用IDを使用します。
 
-### 4.3 `initializeApp()` の責務
+### 4.1 シート整理
 
-- 初期ソート状態を反映
-- セッションキャッシュから「マイ弾幕」を復元
-- 必要に応じてスワイプヒントを開始
-- `loadSongs()` を呼び、データ取得を開始
+`sheet_scripts/performance_record.gs` は重複行をAPI生成前に整理します。
 
-### 4.4 `loadSongs()` → `songsApi.load()` の責務
+- 同一楽曲は `歌ってみた > 歌枠 > ショート`、同カテゴリ内はD列日付の新しい順で1行を選択
+- 選択されなかった行は全て `履歴` へ移動
+- 残す行で欠けているE列と、いずれかの行で有効なF列を継承
+- A/Bが揃った新規行の空F列へ `TRUE` を設定
+- 最後に有効行全体をB列昇順、A列昇順、D列降順でソート
 
-`loadSongs()` は取得候補URLを次の優先順で組み立てます。
+## 5. R2 snapshot契約
 
-1. `window.__SONGS_JSON_URL__`（あれば）
-2. `localStorage('songs_r2_json_url')`
-3. `meta[name="songs-r2-json-url"]`
-4. `meta[name="songs-r2-fallbacks"]` 群
-5. `meta[name="songs-gas-api-url"]`
+```json
+{
+  "items": [],
+  "total": 0,
+  "generatedAt": "2026-01-01T00:00:00.000Z",
+  "schemaVersion": 1,
+  "dataVersion": "sha256:..."
+}
+```
 
-`songsApi.load()` は以下を実行します。
+`dataVersion` は `schemaVersion + items` から生成するため、`generatedAt` だけの変化では更新されません。R2上の `dataVersion` が同じ場合はアップロードを省略します。
 
-1. ステータスを「読込中」に変更
-2. localStorage キャッシュを取得し、あれば先に暫定描画
-3. 候補URLを先頭から順に `fetch`
-   - 200/304なら採用
-   - 404 は次候補へフォールバック
-   - 404以外のHTTPエラーは詳細付きで失敗
-4. JSONパース後、`items` 配列を抽出
-5. `filterItems()`（種別・検索語・並び替え）適用
-6. `renderSongs.render()` へ渡してDOM再描画
-7. 件数表示とステータス（稼働中/停止）を更新
-8. `etag` があればキャッシュ保存
+## 6. CIと検証
 
-失敗時は詳細ログ（`errorName`, `statusCode`, `attempts`, `requestUrl` など）を保持し、キャッシュなしの場合はエラーメッセージを一覧領域に表示します。
+`npm run verify` は以下を実行します。
 
----
+1. JavaScript構文確認
+2. Apps Script構文確認
+3. JSONファイル解析
+4. Service WorkerのAPP_SHELL参照先存在確認
+5. Vitest全件
 
-## 5. データ仕様（フロント観点）
+PRワークフローはread-only権限、10分タイムアウト、同一PRの旧実行キャンセルを設定しています。同期ワークフローは多重実行を禁止し、R2アップロード後の読み戻しまで行います。
 
-取得 JSON は次を受け付けます。
+## 7. 第一段階の不変条件
 
-- ルート配列 `[...]`
-- オブジェクト `{ "items": [...] }`
-
-各 `item` で主に利用する項目:
-
-- `title`
-- `artist`
-- `kind`（または `memo/singingTag` から種別推定）
-- `memo`
-- `liveLink`
-- `liveTitle`
-- `lastSungDate`
-- `publishedAt`
-
-`kind` は `cover / short / live / other` に正規化して扱います。
-
----
-
-## 6. バックエンド連携仕様（GAS / Actions / R2）
-
-### 6.1 GAS (`gas/Code.gs`)
-
-- シート `Performance Record` を読み取り
-- 掲載チェック列が有効な行のみ採用
-- 文字列整形、URL抽出、日付抽出（先頭8桁）を行い `items` へ詰める
-- `doGet?api=songs` で JSON を返却
-
-### 6.2 同期ワークフロー
-
-- `sync-songs-to-r2.yml` は手動実行 + 毎日定期実行
-- シークレット検証後 `scripts/sync_songs_to_r2.sh` を実行
-- 同期スクリプトは
-  1. GAS応答取得
-  2. JSON妥当性検証（`.items` 配列必須）
-  3. R2にアップロード
-  4. 公開URL疎通確認（設定時）
-
----
-
-## 7. 運用上の注意
-
-- フロント表示異常時は、まず `songs-r2-json-url` の直接アクセスで 200/JSON を確認
-- 404 が続く場合、R2 の `songs.json` 配置キーと Actions 成功履歴を確認
-- GAS 側の公開設定や URL パラメータ（`?api=songs`）不足は HTML 応答化の原因になる
-
+- `index.html` の構造・CSS・文言を変更しない
+- 楽曲カードのHTML生成結果を変更しない
+- モバイル／ブラウザの既存操作対象を変更しない
+- 重複データを自動選択して公開しない
+- GASまたはsnapshot検証失敗時に既存R2データを上書きしない
