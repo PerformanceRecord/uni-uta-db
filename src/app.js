@@ -37,11 +37,12 @@ import {
   setupSwipeTrack,
   updatePageIndicator,
   updateViewSwitcher,
-} from './ui/swipeTrack.js?v=8';
+} from './ui/swipeTrack.js?v=9';
 import {
   calculateMiddlePanelInsets,
+  resolveTopMenuCollapsed,
   shouldAutoCollapseTopMenu,
-} from './ui/panelLayout.js?v=8';
+} from './ui/panelLayout.js?v=9';
 import { debounce, rafThrottle } from './utils/scheduling.js';
 
 const CACHE_PREFIX = 'songs-cache-v3';
@@ -77,7 +78,7 @@ let sourceTotalCache = 0;
 let hasSourceItemsCache = false;
 
 function isDesktopMotionOffMode() {
-  return window.matchMedia('(pointer: fine)').matches;
+  return window.matchMedia('(any-pointer: fine)').matches;
 }
 
 function showToast(text, durationMs = 300) {
@@ -142,6 +143,7 @@ let getTopSwipeCard = () => 0;
 let triggerSwipeHint = () => {};
 let swipeHintIntervalId = null;
 let topMenuCollapsed = false;
+let topMenuManualMode = '';
 let topSwipeCardIndex = 0;
 let panelResizeObserver = null;
 
@@ -242,11 +244,13 @@ function setupTopSwipe() {
 
   collapseButton?.addEventListener('click', () => {
     if (!topForm || topSwipeCardIndex !== 0) return;
+    topMenuManualMode = 'collapsed';
     setTopMenuCollapsed(true);
   });
 
   expandButton?.addEventListener('click', () => {
     if (!topForm) return;
+    topMenuManualMode = 'expanded';
     setTopMenuCollapsed(false);
   });
 
@@ -317,19 +321,6 @@ function collapseSongCard(card) {
   if (!toggleBtn) return;
   toggleBtn.textContent = '▶リンクを開く';
   toggleBtn.setAttribute('aria-expanded', 'false');
-}
-
-function collapseExpandedWhenOutOfView() {
-  if (!isMobileLayout()) return;
-  const activeCards = rows.querySelectorAll('.song-card.expanded, .song-card.preview-visible');
-  if (!activeCards.length) return;
-  const rowsRect = rows.getBoundingClientRect();
-  activeCards.forEach((card) => {
-    const cardRect = card.getBoundingClientRect();
-    const isOutOfView = cardRect.bottom <= rowsRect.top || cardRect.top >= rowsRect.bottom;
-    if (!isOutOfView) return;
-    collapseSongCard(card);
-  });
 }
 
 function updateMiddleCardsHeight() {
@@ -420,7 +411,7 @@ function isMobileLayout() {
 
 function isCompactDesktopLayout() {
   return window.matchMedia(
-    '(max-width: 1099px) and (pointer: fine)',
+    '(max-width: 1099px) and (any-pointer: fine)',
   ).matches;
 }
 
@@ -682,6 +673,7 @@ function bind() {
       compactDesktopLayout: isCompactDesktopLayout(),
     });
     if (!autoCollapseEnabled) {
+      topMenuManualMode = '';
       if (topMenuCollapsed) setTopMenuCollapsed(false);
       return;
     }
@@ -689,10 +681,17 @@ function bind() {
 
     const cardSample = rows?.querySelector('.song-card');
     const rowGap = Number.parseFloat(window.getComputedStyle(rows).rowGap || '0') || 0;
-    const cardHeight = cardSample ? (cardSample.offsetHeight + rowGap) : 44;
+    const cardMinHeight = cardSample
+      ? Number.parseFloat(window.getComputedStyle(cardSample).minHeight || '0')
+      : 0;
+    const cardHeight = (cardMinHeight || 74) + rowGap;
     const collapseThreshold = cardHeight * 2;
     const currentScrollTop = rows?.scrollTop ?? window.scrollY;
-    const shouldCollapse = currentScrollTop > collapseThreshold;
+    const shouldCollapse = resolveTopMenuCollapsed({
+      autoCollapseEnabled,
+      manualMode: topMenuManualMode,
+      beyondThreshold: currentScrollTop > collapseThreshold,
+    });
     if (shouldCollapse === topMenuCollapsed) return;
     setTopMenuCollapsed(shouldCollapse);
   };
@@ -751,9 +750,8 @@ function bind() {
     updateTopFormCollapseByScroll();
     updateScrollTopOffset();
   });
-  const scheduleRowsVisibilityUpdate = rafThrottle(() => {
+  const scheduleRowsScrollUpdate = rafThrottle(() => {
     updateTopFormCollapseByScroll();
-    collapseExpandedWhenOutOfView();
   });
 
   if (typeof window.ResizeObserver === 'function') {
@@ -827,7 +825,7 @@ function bind() {
     previousRowsScrollTop = rows.scrollTop;
     lastRowsBubbleAt = now;
 
-    scheduleRowsVisibilityUpdate();
+    scheduleRowsScrollUpdate();
   });
 
 
