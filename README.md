@@ -2,28 +2,37 @@
 
 公開ページ: https://<your-github-user>.github.io/uni-uta-db/
 
-'**Cloudflare R2 + Static Assets** 構成です。  
+**Cloudflare R2 + Static Assets** 構成です。  
 このリポジトリでは、`Performance Record` シートをGASでJSON化し、GitHub ActionsでR2へ定期同期する運用を想定しています。
 
 ## 構成
 
 - `gas/Code.gs`: スプレッドシートを `songs.json` 形式で返すGASコード
 - `.github/workflows/sync-songs-to-r2.yml`: GAS -> R2 定期同期
-- `scripts/sync_songs_to_r2.sh`: 同期用スクリプト
+- `scripts/build_songs_snapshot.mjs`: GAS取得・データ契約検証・スナップショット生成
+- `scripts/sync_songs_to_r2.sh`: R2への差分アップロード・読み戻し検証
 - `index.html`: 楽曲検索UI
-- `tests/songsApi.test.js`: フロント用ユニットテスト（Vitest）
+- `src/data/songsApi.js`: R2取得・検証・キャッシュ制御
+- `src/domain/songCatalog.js`: 楽曲の分類・検索・並び替え・リンク正規化
+- `src/features/danmaku.js`: カスタム弾幕のUnicode処理・生成・期限付きキャッシュ
+- `src/features/scrollBubbles.js`: 泡演出の強度・個数・DOM生成
+- `src/platform/*.js`: PWAとクリップボードのブラウザ依存処理
+- `src/ui/swipeTrack.js`: 上下フォームのスワイプ制御
+- `src/utils/scheduling.js`: 検索デバウンス・描画フレーム制御
+- `sw.js`: 同一オリジンのアプリシェル用Service Worker
+- `tests/*.test.js`: データ契約・取得処理・楽曲ドメインのユニットテスト（Vitest）
 - `.github/workflows/pr-test.yml`: PR時の自動テスト
 
 
 ### PR時の自動テスト（新規）
 
-このリポジトリには、`pull_request` を契機に `npm test` を実行するワークフロー（`.github/workflows/pr-test.yml`）を追加しています。
+このリポジトリには、`pull_request`と手動実行で構文・Service Worker参照・全テストを検証するワークフロー（`.github/workflows/pr-test.yml`）があります。
 
 ローカル実行手順:
 
 ```bash
-npm install
-npm test
+npm ci
+npm run verify
 ```
 
 ---
@@ -51,9 +60,11 @@ flowchart LR
 
   subgraph Sync[定期同期]
     GH[GitHub Actions\n.github/workflows/sync-songs-to-r2.yml]
+    Build[scripts/build_songs_snapshot.mjs]
     Script[scripts/sync_songs_to_r2.sh]
     GAS -->|JSON取得| GH
-    GH --> Script
+    GH --> Build
+    Build -->|検証済みsnapshot| Script
   end
 
   subgraph Storage[配信ストレージ]
@@ -78,6 +89,9 @@ flowchart LR
 
 対象シート名: `Performance Record`
 
+- ヘッダー行: 3行目
+- データ開始行: 4行目
+
 列は以下を前提にしています。
 
 - A: アーティスト名
@@ -89,14 +103,33 @@ flowchart LR
 
 `掲載チェック` が有効（✅ / ☑ / TRUE / 1 など）の行だけを出力します。
 
+- チェック済み行はA/B必須です。
+- A+Bの重複、存在しない8桁日付、HTTP(S)以外のURLは同期前に拒否します。
+- 種別優先度は `歌ってみた > 歌枠 > ショート` です。
+- Webアプリ用スプレッドシートIDはApps ScriptのScript Propertiesに`SPREADSHEET_ID`として設定できます。未設定時は互換用IDを使用します。
+
+### Performance Record整理スクリプト
+
+`sheet_scripts/performance_record.gs` はA+Bが同じ楽曲を次の規則で1行に整理します。
+
+- `歌ってみた > 歌枠 > ショート` のカテゴリ優先
+- 同カテゴリ内はD列文頭の日付が新しい行を優先
+- 下位行はすべて `履歴` シートへ移動
+- 残す行に不足しているE列と、有効なF列の掲載チェックを下位行から継承
+- A/Bが揃った新規行でF列が空なら `TRUE` を既定設定
+- 整理後は行全体をB列昇順、A列昇順、D列降順で並べ替え
+
+詳細は [`docs/performance_record_gs_translation_ja.md`](docs/performance_record_gs_translation_ja.md) を参照してください。
+
 ### GASデプロイ手順
 
 1. スプレッドシートで Apps Script を開く
-2. `gas/Code.gs` の内容を貼り付け
-3. デプロイ > 新しいデプロイ > ウェブアプリ
+2. `gas/Code.gs` と `sheet_scripts/performance_record.gs` の内容を配置
+3. プロジェクトの設定 > スクリプト プロパティで`SPREADSHEET_ID`を設定
+4. デプロイ > 新しいデプロイ > ウェブアプリ
    - 実行ユーザー: 自分
    - アクセス権: リンクを知っている全員
-4. 発行されたURLに `?api=songs` をつけて確認
+5. 発行されたURLに `?api=songs` をつけ、`items`と`total`を確認
 
 例:
 
@@ -113,6 +146,8 @@ https://script.google.com/macros/s/AKfycbyR0J5IjXT7lZjDT7SAIkM4TW8SP1k0iNy3wW0Q2
 - 手動実行: `workflow_dispatch`
 - 定期実行: 毎日 JST 12:00（UTC 03:00）
 - 注記: GitHub Actions の cron は UTC 表記です。
+- 同じ内容の再アップロードは `dataVersion` 比較で省略します。
+- GAS取得とR2アップロードは再試行し、アップロード後に同一内容を読み戻して検証します。
 
 ### 必要な GitHub Secrets
 
@@ -141,9 +176,9 @@ bash scripts/verify_r2_upload_and_read.sh
 
 このスクリプトは以下を順に検証します。
 
-1. GASレスポンスがJSONとして妥当か（`.items` 配列を持つか）
+1. GASレスポンスがデータ契約を満たすか（項目型・日付・URL・件数を含む）
 2. R2へアップロードできるか（検証用キーへ保存）
-3. R2から同じオブジェクトを読み戻せるか（S3 API経由）
+3. R2から同一内容を読み戻せるか（S3 API経由）
 4. （廃止）`WORKER_BASE_URL` を使ったWorker読み取り検証
 
 検証で作成したオブジェクト（`*.verify.<timestamp>.json`）は、終了時に自動削除されます（失敗時も削除を試行）。
@@ -157,10 +192,12 @@ bash scripts/verify_r2_upload_and_read.sh
   - `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`（または `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`）を設定。
 - `Missing required R2 config` エラー
   - `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_OBJECT_KEY` を設定。
-- `jq: parse error: Invalid numeric literal` エラー
-  - JSONの数値フォーマット不正だけでなく、**GASがHTMLエラーページを返している**場合にも起こります。
+- `GAS response is invalid JSON` / `GAS response is not a JSON object` エラー
+  - JSONの形式不正だけでなく、**GASがHTMLエラーページを返している**場合にも起こります。
   - まず `GAS_SONGS_API_URL` をブラウザで開き、`{` から始まるJSONが返るかを確認してください（`?api=songs` を必ず付与）。
-  - 追加で、`scripts/sync_songs_to_r2.sh` は `Content-Type` も検証します。`text/html` が返る場合はGAS公開設定（アクセス権）またはURL誤りを疑ってください。
+  - `scripts/build_songs_snapshot.mjs` は項目型・日付・URL・件数も検証します。エラーになった項目をスプレッドシート側で確認してください。
+- `GAS API error: ...` エラー
+  - GASが重複、必須値欠損、日付不正などをJSONで報告しています。メッセージに含まれる行番号をスプレッドシートで修正してください。
 
 ---
 
@@ -212,13 +249,23 @@ bash scripts/verify_r2_upload_and_read.sh
   ],
   "total": 1,
   "generatedAt": "2026-01-01T00:00:00.000Z",
-  "schemaVersion": 1
+  "schemaVersion": 1,
+  "dataVersion": "sha256:..."
 }
 ```
 
 補足:
 - `lastSungDate`: 歌枠直リンクの先頭8桁 (`yyyymmdd`) から生成
 - `publishedAt`: ソート・表示の基準日（`lastSungDate` と同じ日付を格納）
+- `dataVersion`: `schemaVersion` と `items` の内容から生成するSHA-256。生成日時だけが変わっても同じ値になります。
+- `artist` と `title` の組み合わせは一意である必要があります。重複時は自動で優先順位を決めず、同期を停止してスプレッドシート側の修正を求めます。
+
+### ブラウザ側の安定化
+
+- R2取得は候補ごとに15秒で中断し、ネットワークエラー・404・408・429・5xxでは次候補を試します。
+- ETagがCORSで公開されない場合も検証済みJSONをlocalStorageへ保存します。
+- 通信失敗時は期限内または既存の検証済みキャッシュを表示し続けます。
+- Service Workerは同一オリジンのHTML/JS/アイコンだけを保持し、R2の`songs.json`には介入しません。
 
 ---
 
