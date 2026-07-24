@@ -19,11 +19,18 @@ describe('compact browser view switcher', () => {
   });
 
   it('縮小ブラウザのマウス操作時だけ表示する', () => {
-    expect(styles).toContain(
+    const mediaStart = styles.indexOf(
       '@media (max-width: 1099px) and (pointer: fine)',
     );
+    const mediaEnd = styles.indexOf('@keyframes swipe-hint', mediaStart);
+    const compactDesktopStyles = styles.slice(mediaStart, mediaEnd);
+
+    expect(mediaStart).toBeGreaterThanOrEqual(0);
     expect(styles).toMatch(
       /\.compact-view-switch\s*\{\s*display:\s*none;/,
+    );
+    expect(compactDesktopStyles).toContain(
+      '.top-fold-btn,\n  .top-expand-btn {\n    display: none !important;',
     );
   });
 });
