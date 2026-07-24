@@ -37,11 +37,11 @@ import {
   setupSwipeTrack,
   updatePageIndicator,
   updateViewSwitcher,
-} from './ui/swipeTrack.js';
+} from './ui/swipeTrack.js?v=8';
 import {
   calculateMiddlePanelInsets,
   shouldAutoCollapseTopMenu,
-} from './ui/panelLayout.js';
+} from './ui/panelLayout.js?v=8';
 import { debounce, rafThrottle } from './utils/scheduling.js';
 
 const CACHE_PREFIX = 'songs-cache-v3';
