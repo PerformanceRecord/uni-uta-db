@@ -56,7 +56,7 @@ async function checkJson(file) {
 async function checkIndexHtml() {
   const html = await readFile('index.html', 'utf8');
   assert(
-    /<link\b[^>]*\bhref=["']assets\/styles\.css["']/i.test(html),
+    /<link\b[^>]*\bhref=["']assets\/styles\.css(?:\?[^"']+)?["']/i.test(html),
     'index.html must load assets/styles.css',
   );
 
@@ -105,7 +105,7 @@ async function checkServiceWorkerShell() {
 
   for (const shellFile of shellFiles) {
     if (shellFile === './') continue;
-    const localPath = resolve(shellFile.slice(2));
+    const localPath = resolve(shellFile.slice(2).split(/[?#]/, 1)[0]);
     assert(existsSync(localPath), `Missing Service Worker shell file: ${shellFile}`);
   }
 }
