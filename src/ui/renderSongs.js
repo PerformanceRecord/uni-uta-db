@@ -112,6 +112,18 @@ export function extractVideoPreview(url) {
   return null;
 }
 
+export function getSongCardToggleState({
+  expanded = false,
+  mobile = false,
+  hasPreview = false,
+} = {}) {
+  const willExpand = !expanded;
+  return {
+    expanded: willExpand,
+    previewVisible: willExpand && mobile && hasPreview,
+  };
+}
+
 export function render(items, totals = {}, deps = {}) {
   const {
     rows,
@@ -125,6 +137,7 @@ export function render(items, totals = {}, deps = {}) {
     copyTextToClipboard,
     showToast,
     collapseExpandedCards,
+    isMobileLayout = () => false,
     resolveSingingTag,
     bestExternalUrl,
   } = deps;
@@ -182,9 +195,23 @@ export function render(items, totals = {}, deps = {}) {
       rows.dataset.selected = JSON.stringify(item);
     };
     const toggleExpanded = () => {
-      const willExpand = !el.classList.contains('expanded');
+      const nextState = getSongCardToggleState({
+        expanded: el.classList.contains('expanded'),
+        mobile: isMobileLayout(),
+        hasPreview: Boolean(el.querySelector('.song-preview-wrap')),
+      });
       collapseExpandedCards();
-      if (willExpand) el.classList.add('expanded');
+      if (!nextState.expanded) return;
+
+      el.classList.add('expanded');
+      if (!nextState.previewVisible) return;
+
+      el.classList.add('preview-visible');
+      const previewToggleButton = el.querySelector('button[data-preview-toggle]');
+      if (previewToggleButton) {
+        previewToggleButton.textContent = '▼リンクを閉じる';
+        previewToggleButton.setAttribute('aria-expanded', 'true');
+      }
     };
 
     el.addEventListener('click', (evt) => {
