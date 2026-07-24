@@ -125,6 +125,7 @@ Purpose: Codexにこの1ファイルを読み込ませるだけで、同等仕�
 
 - Trigger:
   - `workflow_dispatch`
+  - `push` to `main`（同期基盤の関連ファイル変更時のみ）
   - `schedule.cron = '0 3 * * *'`（UTC、JST 12:00）
 - Runner: `ubuntu-latest`
 
@@ -332,4 +333,3 @@ Spreadsheet IDの取得:
 - フィルタ3種（live/cover/short）が機能する
 - 検索（q）が機能する
 - Actions定期実行後にR2オブジェクト更新時刻が更新される
-
