@@ -1,1 +1,4 @@
 node_modules/
+.pnpm-store/
+songs.generated.json
+songs.generated.json.*.tmp
