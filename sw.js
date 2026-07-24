@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'uni-uta-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 const APP_SHELL = [
   './',
   './index.html',
@@ -38,6 +38,15 @@ async function networkFirstNavigation(request) {
       || await caches.match('./index.html')
       || await caches.match('./')
     );
+  }
+}
+
+async function networkFirstAsset(request) {
+  try {
+    const response = await fetch(request);
+    return await cacheResponse(request, response);
+  } catch (_) {
+    return caches.match(request);
   }
 }
 
@@ -85,6 +94,11 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstNavigation(request));
+    return;
+  }
+
+  if (/\.(?:css|js|mjs)$/i.test(url.pathname)) {
+    event.respondWith(networkFirstAsset(request));
     return;
   }
 
