@@ -36,6 +36,7 @@ import {
   setupSwipeTrack,
   updatePageIndicator,
 } from './ui/swipeTrack.js';
+import { calculateMiddlePanelInsets } from './ui/panelLayout.js';
 import { debounce, rafThrottle } from './utils/scheduling.js';
 
 const CACHE_PREFIX = 'songs-cache-v3';
@@ -137,6 +138,7 @@ let triggerSwipeHint = () => {};
 let swipeHintIntervalId = null;
 let topMenuCollapsed = false;
 let topSwipeCardIndex = 0;
+let panelResizeObserver = null;
 
 function getCollapsedTopHeight(topForm, filterPanel) {
   if (!topForm || !filterPanel) return 0;
@@ -162,7 +164,6 @@ function setTopMenuCollapsed(nextCollapsed) {
   topMenuCollapsed = Boolean(nextCollapsed);
   applyTopFormCollapsedState();
   syncTopPanelSize();
-  updateDummyCardsHeight();
 }
 
 function syncTopPanelSize() {
@@ -188,7 +189,6 @@ function syncTopPanelSize() {
 
   window.requestAnimationFrame(() => {
     updateMiddleCardsHeight();
-    updateDummyCardsHeight();
   });
 }
 
@@ -218,7 +218,6 @@ function setupTopSwipe() {
       }
       applyTopFormCollapsedState();
       syncTopPanelSize();
-      updateDummyCardsHeight();
     },
   });
   setTopSwipeCard = topSwipe.setCard;
@@ -330,42 +329,6 @@ function updateMiddleCardsHeight() {
     rows.style.removeProperty('max-height');
   }
 }
-
-function updateDummyCardsHeight() {
-  const topForm = byId('topForm');
-  if (topForm) {
-    const rootStyle = getComputedStyle(document.documentElement);
-    const fixedTopDummyHeight = rootStyle.getPropertyValue('--dummy-top-card-height-fixed').trim();
-    if (fixedTopDummyHeight && fixedTopDummyHeight !== 'auto') {
-      document.documentElement.style.setProperty('--dummy-top-card-height', fixedTopDummyHeight);
-    } else {
-      const isCollapsed = topForm.classList.contains('collapsed');
-      const topVarName = isCollapsed
-        ? '--top-collapsed-height'
-        : '--top-expanded-height';
-      const topCssHeight = getComputedStyle(topForm).getPropertyValue(topVarName).trim();
-      const extraExpanded = rootStyle.getPropertyValue('--dummy-top-card-extra-expanded').trim() || '3px';
-      const extraCollapsed = rootStyle.getPropertyValue('--dummy-top-card-extra-collapsed').trim() || '7px';
-      const extraTopDummy = isCollapsed ? extraCollapsed : extraExpanded;
-      if (topCssHeight) {
-        document.documentElement.style.setProperty('--dummy-top-card-height', `calc(${topCssHeight} + ${extraTopDummy})`);
-      } else {
-        const topHeight = Math.ceil(topForm.getBoundingClientRect().height);
-        if (topHeight > 0) {
-          document.documentElement.style.setProperty('--dummy-top-card-height', `calc(${topHeight}px + ${extraTopDummy})`);
-        }
-      }
-    }
-  }
-
-  const searchPanel = document.querySelector('.bottom-panel[aria-label="検索フォームカード"]');
-  if (!searchPanel) return;
-  const bottomHeight = Math.ceil(searchPanel.getBoundingClientRect().height * 2);
-  if (bottomHeight > 0) {
-    document.documentElement.style.setProperty('--dummy-end-card-height', `${bottomHeight}px`);
-  }
-}
-
 
 function updateMyDanmakuOptionLabel(inputValue = '') {
   const option = document.querySelector('#danmakuType option[value="my"]');
@@ -707,7 +670,7 @@ function bind() {
     const topForm = byId('topForm');
     const middleForm = document.querySelector('.middle-form');
     const bottomForm = document.querySelector('.bottom-form');
-    if (!bottomForm || !container) return;
+    if (!topForm || !middleForm || !bottomForm || !container) return;
 
     const isWideDesktop = window.matchMedia('(min-width: 1100px)').matches;
     if (isWideDesktop) {
@@ -715,9 +678,9 @@ function bind() {
         panel?.style.removeProperty('left');
         panel?.style.removeProperty('width');
       });
-      document.documentElement.style.setProperty('--scroll-top-offset', '0px');
+      middleForm.style.removeProperty('top');
+      middleForm.style.removeProperty('bottom');
       updateMiddleCardsHeight();
-      updateDummyCardsHeight();
       syncTopPanelSize();
       return;
     }
@@ -729,23 +692,26 @@ function bind() {
     const sharedLeft = `${Math.round(cappedLeft)}px`;
     const sharedWidth = `${Math.round(cappedWidth)}px`;
 
-    if (topForm) {
-      topForm.style.left = sharedLeft;
-      topForm.style.width = sharedWidth;
-    }
-    if (middleForm) {
-      middleForm.style.left = sharedLeft;
-      middleForm.style.width = sharedWidth;
-    }
+    topForm.style.left = sharedLeft;
+    topForm.style.width = sharedWidth;
+    middleForm.style.left = sharedLeft;
+    middleForm.style.width = sharedWidth;
     bottomForm.style.left = sharedLeft;
     bottomForm.style.width = sharedWidth;
 
-    const rect = bottomForm.getBoundingClientRect();
-    const overlap = Math.max(0, window.innerHeight - rect.top);
-    const offset = overlap > 0 ? overlap + 8 : 0;
-    document.documentElement.style.setProperty('--scroll-top-offset', `${offset}px`);
+    const panelGap = isMobileLayout() ? 8 : 12;
+    const topRect = topForm.getBoundingClientRect();
+    const bottomRect = bottomForm.getBoundingClientRect();
+    const middleInsets = calculateMiddlePanelInsets({
+      viewportHeight: window.innerHeight,
+      topPanelBottom: topRect.bottom,
+      bottomPanelTop: bottomRect.top,
+      gap: panelGap,
+    });
+    middleForm.style.top = `${middleInsets.top}px`;
+    middleForm.style.bottom = `${middleInsets.bottom}px`;
+
     updateMiddleCardsHeight();
-    updateDummyCardsHeight();
     syncTopPanelSize();
   };
 
@@ -757,6 +723,16 @@ function bind() {
     updateTopFormCollapseByScroll();
     collapseExpandedWhenOutOfView();
   });
+
+  if (typeof window.ResizeObserver === 'function') {
+    panelResizeObserver?.disconnect();
+    panelResizeObserver = new window.ResizeObserver(
+      scheduleViewportLayoutUpdate,
+    );
+    [byId('topForm'), document.querySelector('.bottom-form')]
+      .filter(Boolean)
+      .forEach((panel) => panelResizeObserver.observe(panel));
+  }
 
   const MIN_BUBBLE_INTERVAL_MS = 48;
   const MIN_SCROLL_DELTA_FOR_BUBBLE = 3;
