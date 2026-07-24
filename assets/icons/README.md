@@ -1,11 +1,11 @@
-# Icons place holder
+# アプリアイコン
 
-このディレクトリに、以下のアプリアイコンを配置してください。
+アプリが実際に参照するアイコンを用途別に管理します。
 
 - `favicon.ico`（ブラウザタブ用）
-- `favicon.svg`（任意・対応ブラウザ向け）
-- `apple-touch-icon.png`（iPhone / iPad ホーム画面用、推奨 180x180）
-- `android-chrome-192x192.png`（Android用）
-- `android-chrome-512x512.png`（Android用）
+- `favicon.svg`（対応ブラウザ向けの軽量ベクター）
+- `apple-touch-icon.png`（iPhone / iPad ホーム画面用）
+- `favicon-192.png`（PWA用）
+- `favicon-512.png`（PWAおよびSNS共有画像用）
 
-`site.webmanifest` から上記ファイルを参照しています。
+`site.webmanifest` はPWA用の192px・512px画像を参照します。
