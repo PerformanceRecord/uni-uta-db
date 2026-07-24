@@ -17,11 +17,10 @@
   <meta name="songs-gas-api-url" content="https://script.google.com/macros/s/AKfycbyR0J5IjXT7lZjDT7SAIkM4TW8SP1k0iNy3wW0Q2YhIGON6ugsvdffm0zYI1cJzgIoP/exec?api=songs">
   <title>うにうたDB</title>
   <link rel="icon" href="assets/icons/favicon.ico" sizes="any">
-  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
   <link rel="manifest" href="assets/icons/site.webmanifest">
   <meta name="theme-color" content="#f4a645">
-  <link rel="stylesheet" href="assets/styles.css?v=4">
+  <link rel="stylesheet" href="assets/styles.css?v=5">
 </head>
 <body>
   <div id="scrollBubbles" class="scroll-bubbles" aria-hidden="true"></div>
@@ -33,13 +32,6 @@
           <section class="top-panel" aria-label="絞り込みカード">
             <div class="top-summary">
               <div class="summary-box">
-                <div class="mobile-brand" aria-label="うにうたDB">
-                  <span class="mobile-brand-mark" aria-hidden="true">う</span>
-                  <span class="mobile-brand-copy">
-                    <strong>うにうたDB</strong>
-                    <small>SONG LIBRARY</small>
-                  </span>
-                </div>
                 <span class="status-shell" id="statusShell" data-state="loading" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false" aria-controls="installHelpPopover">
                   <span class="status-dot" aria-hidden="true"></span>
                   <span class="status" id="status"></span>
@@ -193,7 +185,7 @@
   <div id="toast" class="toast" aria-live="polite" role="status"></div>
 
   <script type="module">
-    import { bind, setupTopSwipe, setupBottomSwipe, initializeApp } from './src/app.js?v=4';
+    import { bind, setupTopSwipe, setupBottomSwipe, initializeApp } from './src/app.js?v=5';
 
     bind();
     setupTopSwipe();
