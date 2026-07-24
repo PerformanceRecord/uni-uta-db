@@ -23,3 +23,14 @@ export function shouldAutoCollapseTopMenu({
 } = {}) {
   return Boolean(mobileLayout && !compactDesktopLayout);
 }
+
+export function resolveTopMenuCollapsed({
+  autoCollapseEnabled = false,
+  manualMode = '',
+  beyondThreshold = false,
+} = {}) {
+  if (!autoCollapseEnabled) return false;
+  if (manualMode === 'collapsed') return true;
+  if (manualMode === 'expanded') return false;
+  return Boolean(beyondThreshold);
+}
