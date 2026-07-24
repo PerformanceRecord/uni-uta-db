@@ -762,6 +762,11 @@ a:focus-visible,
 }
 
 @media (max-width: 1099px) and (pointer: fine) {
+  .top-fold-btn,
+  .top-expand-btn {
+    display: none !important;
+  }
+
   .compact-view-switch {
     position: relative;
     z-index: 2;
