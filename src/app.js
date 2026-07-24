@@ -454,6 +454,7 @@ const renderDeps = {
   copyTextToClipboard,
   showToast,
   collapseExpandedCards,
+  isMobileLayout,
   resolveSingingTag,
   bestExternalUrl,
 };
