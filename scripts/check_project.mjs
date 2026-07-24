@@ -15,6 +15,7 @@ const runtimeJavaScriptFiles = [
   'src/platform/storage.js',
   'src/state/appState.js',
   'src/ui/dom.js',
+  'src/ui/panelLayout.js',
   'src/ui/renderSongs.js',
   'src/ui/status.js',
   'src/ui/swipeTrack.js',
