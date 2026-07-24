@@ -1,15 +1,46 @@
-import { state, DEFAULT_KINDS, KIND_MAP, KIND_LABELS } from './state/appState.js';
+import { state, DEFAULT_KINDS } from './state/appState.js';
 import { byId } from './ui/dom.js';
 import { setStatus, setLoadingStatus, setRunningStatus, setStoppedStatus, setErrorStatus } from './ui/status.js';
 import { render } from './ui/renderSongs.js';
 import { load } from './data/songsApi.js';
+import {
+  bestExternalUrl,
+  filterSongItems,
+  fmtDate,
+  isPlaceholderUrl,
+  resolveSingingTag,
+  stableSongId,
+} from './domain/songCatalog.js';
+import {
+  buildMyDanmaku,
+  buildMyDanmakuPreview,
+  DEFAULT_MY_DANMAKU_LABEL,
+  loadMyDanmakuCache,
+  normalizeMyEmoji,
+  saveMyDanmakuCache,
+} from './features/danmaku.js';
+import {
+  computeBubbleIntensity,
+  createScrollBubbles,
+} from './features/scrollBubbles.js';
+import {
+  copyTextToClipboard,
+  insertTextIntoMemo,
+} from './platform/clipboard.js';
+import {
+  registerServiceWorker,
+  setupInstallHelpPopover,
+} from './platform/pwa.js';
+import {
+  setupSwipeTrack,
+  updatePageIndicator,
+} from './ui/swipeTrack.js';
+import { debounce, rafThrottle } from './utils/scheduling.js';
 
 const CACHE_PREFIX = 'songs-cache-v3';
 const DATA_CACHE_KEY = 'dataset';
 const DATA_REFRESH_TTL_MS = 150 * 60 * 1000;
-const MY_DANMAKU_CACHE_KEY = 'my-danmaku-cache-v1';
-const MY_DANMAKU_CACHE_MS = 15 * 60 * 1000;
-const DEFAULT_MY_DANMAKU_LABEL = 'カスタム弾幕';
+const SEARCH_DEBOUNCE_MS = 120;
 const SWIPE_HINT_INTERVAL_MS = 3 * 60 * 1000;
 const MAX_ERROR_BODY_CHARS = 4000;
 const ENABLE_ERROR_LOG_UI = true;
@@ -37,118 +68,9 @@ let toastTimer = null;
 let sourceItemsCache = [];
 let sourceTotalCache = 0;
 let hasSourceItemsCache = false;
-let deferredInstallPrompt = null;
-
-function isIosSafari() {
-  const ua = window.navigator.userAgent || '';
-  const isAppleMobile = /iPhone|iPad|iPod/i.test(ua);
-  const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
-  return isAppleMobile && isSafari;
-}
-
-function isStandaloneMode() {
-  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-}
 
 function isDesktopMotionOffMode() {
   return window.matchMedia('(pointer: fine)').matches;
-}
-
-function registerServiceWorker() {
-  if (!('serviceWorker' in window.navigator)) return;
-  window.navigator.serviceWorker.register('./sw.js').catch((err) => {
-    console.warn('service-worker-register-failed', err);
-  });
-}
-
-function setupInstallHelpPopover() {
-  if (!statusShell || !installHelpPopover || !installHelpBody || !installHelpAction || !installHelpClose) return;
-
-  let isOpen = false;
-
-  const closePopover = () => {
-    if (!isOpen) return;
-    isOpen = false;
-    installHelpPopover.hidden = true;
-    statusShell.setAttribute('aria-expanded', 'false');
-  };
-
-  const openPopover = () => {
-    isOpen = true;
-    const isAndroidPromptReady = !!deferredInstallPrompt;
-    const isStandalone = isStandaloneMode();
-    const onIosSafari = isIosSafari();
-
-    if (isStandalone) {
-      installHelpBody.textContent = 'このアプリはすでにホーム画面から起動中です';
-      installHelpAction.hidden = true;
-    } else if (isAndroidPromptReady) {
-      installHelpBody.textContent = 'このアプリをホーム画面に追加できます';
-      installHelpAction.hidden = false;
-      installHelpAction.disabled = false;
-    } else if (onIosSafari) {
-      installHelpBody.textContent = '共有ボタン(⍐)→その他からホーム画面にアプリを追加できます';
-      installHelpAction.hidden = true;
-    } else {
-      installHelpBody.textContent = 'URL横の共有ボタン→その他からホーム画面にアプリを追加できます！';
-      installHelpAction.hidden = true;
-    }
-
-    installHelpPopover.classList.toggle('ios-inline', onIosSafari);
-    installHelpPopover.hidden = false;
-    statusShell.setAttribute('aria-expanded', 'true');
-  };
-
-  const togglePopover = () => {
-    if (isOpen) closePopover();
-    else openPopover();
-  };
-
-  window.addEventListener('beforeinstallprompt', (evt) => {
-    evt.preventDefault();
-    deferredInstallPrompt = evt;
-  });
-
-  window.addEventListener('appinstalled', () => {
-    deferredInstallPrompt = null;
-    closePopover();
-  });
-
-  window.matchMedia('(display-mode: standalone)').addEventListener('change', () => {
-    if (isStandaloneMode()) closePopover();
-  });
-  window.matchMedia('(max-width: 860px)').addEventListener('change', () => {
-    closePopover();
-  });
-
-  statusShell.addEventListener('click', togglePopover);
-  statusShell.addEventListener('keydown', (evt) => {
-    if (evt.key !== 'Enter' && evt.key !== ' ') return;
-    evt.preventDefault();
-    togglePopover();
-  });
-
-  installHelpClose.addEventListener('click', closePopover);
-  installHelpAction.addEventListener('click', async () => {
-    if (!deferredInstallPrompt) return;
-    try {
-      deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice.catch(() => null);
-    } finally {
-      deferredInstallPrompt = null;
-      closePopover();
-    }
-  });
-
-  document.addEventListener('click', (evt) => {
-    if (!isOpen) return;
-    if (installHelpPopover.contains(evt.target) || statusShell.contains(evt.target)) return;
-    closePopover();
-  });
-
-  document.addEventListener('keydown', (evt) => {
-    if (evt.key === 'Escape') closePopover();
-  });
 }
 
 function showToast(text, durationMs = 300) {
@@ -214,119 +136,6 @@ function headersToObject(headers) {
     let swipeHintIntervalId = null;
     let topMenuCollapsed = false;
     let topSwipeCardIndex = 0;
-
-    function setupSwipeTrack({
-      wrap,
-      track,
-      panelWidthPercent = 50,
-      onCardChange = null,
-      allowInteractiveStart = false,
-    }) {
-      let current = 0;
-      let dragging = false;
-      let startX = 0;
-      let startY = 0;
-      let deltaX = 0;
-      let deltaY = 0;
-      let pointerId = null;
-      let gestureLocked = false;
-      let gestureIsHorizontal = false;
-
-      const setCard = (index, withAnimation = true) => {
-        current = Math.max(0, Math.min(1, index));
-        track.style.transition = withAnimation
-          ? 'transform 0.45s cubic-bezier(0.2, 0.9, 0.2, 1)'
-          : 'none';
-        track.style.transform = `translateX(${-current * panelWidthPercent}%)`;
-        if (typeof onCardChange === 'function') {
-          onCardChange(current);
-        }
-      };
-
-      const getThreshold = () => Math.max(54, wrap.clientWidth * 0.12);
-
-      const onPointerMove = (evt) => {
-        if (!dragging || evt.pointerId !== pointerId) return;
-        deltaX = evt.clientX - startX;
-        deltaY = evt.clientY - startY;
-        if (!gestureLocked) {
-          const moveAmount = Math.max(Math.abs(deltaX), Math.abs(deltaY));
-          if (moveAmount < 6) return;
-          gestureLocked = true;
-          gestureIsHorizontal = Math.abs(deltaX) >= Math.abs(deltaY);
-        }
-        if (!gestureIsHorizontal) return;
-        evt.preventDefault();
-        const base = -current * panelWidthPercent;
-        const ratio = (deltaX / wrap.clientWidth) * panelWidthPercent;
-        const next = Math.max(-panelWidthPercent, Math.min(0, base + ratio));
-        track.style.transform = `translateX(${next}%)`;
-      };
-
-      const onPointerUp = (evt) => {
-        if (!dragging || evt.pointerId !== pointerId) return;
-        dragging = false;
-        track.classList.remove('dragging');
-        track.releasePointerCapture(pointerId);
-        if (!gestureIsHorizontal) {
-          setCard(current, false);
-          pointerId = null;
-          deltaX = 0;
-          deltaY = 0;
-          gestureLocked = false;
-          gestureIsHorizontal = false;
-          return;
-        }
-        const threshold = getThreshold();
-        if (Math.abs(deltaX) > threshold) {
-          if (deltaX < 0) setCard(current + 1);
-          else setCard(current - 1);
-        } else {
-          setCard(current);
-        }
-        pointerId = null;
-        deltaX = 0;
-        deltaY = 0;
-        gestureLocked = false;
-        gestureIsHorizontal = false;
-      };
-
-      track.addEventListener('pointerdown', (evt) => {
-        if (evt.pointerType === 'mouse' && evt.button !== 0) return;
-        const interactiveTarget = evt.target?.closest?.('button, input, select, textarea, label, a');
-        const isMousePointer = evt.pointerType === 'mouse';
-        if (interactiveTarget && (!allowInteractiveStart || isMousePointer)) return;
-        dragging = true;
-        startX = evt.clientX;
-        startY = evt.clientY;
-        deltaX = 0;
-        deltaY = 0;
-        gestureLocked = false;
-        gestureIsHorizontal = false;
-        pointerId = evt.pointerId;
-        track.classList.add('dragging');
-        track.setPointerCapture(pointerId);
-      });
-
-      track.addEventListener('pointermove', onPointerMove);
-      track.addEventListener('pointerup', onPointerUp);
-      track.addEventListener('pointercancel', onPointerUp);
-
-      setCard(0, false);
-      return {
-        setCard,
-        getCurrent: () => current,
-      };
-    }
-
-    function updatePageIndicator(indicator, activeIndex) {
-      if (!indicator) return;
-      const dots = indicator.querySelectorAll('.dot');
-      dots.forEach((dot, index) => {
-        dot.classList.toggle('active', index === activeIndex);
-      });
-    }
-
 
     function getCollapsedTopHeight(topForm, filterPanel) {
       if (!topForm || !filterPanel) return 0;
@@ -483,39 +292,6 @@ function headersToObject(headers) {
     }
 
 
-    const MAX_SCROLL_BUBBLES = 90;
-
-    function createScrollBubbles(mode = 'normal', intensity = 1) {
-      if (!scrollBubbles) return;
-      if (isDesktopMotionOffMode()) return;
-      const burst = mode === 'burst';
-      const normalizedIntensity = Math.max(1, Number.isFinite(intensity) ? intensity : 1);
-      const cappedIntensity = Math.min(40, normalizedIntensity);
-      const requestedCount = burst
-        ? Math.max(5, Math.round(cappedIntensity * 3))
-        : Math.max(5, Math.round(cappedIntensity));
-      const activeCount = scrollBubbles.childElementCount;
-      const availableSlots = Math.max(0, MAX_SCROLL_BUBBLES - activeCount);
-      const bubbleCount = Math.min(requestedCount, availableSlots);
-      if (bubbleCount <= 0) return;
-      const fragment = document.createDocumentFragment();
-      for (let i = 0; i < bubbleCount; i += 1) {
-        const bubble = document.createElement('span');
-        bubble.className = 'scroll-bubble';
-        const size = burst ? 12 + Math.random() * 24 : 8 + Math.random() * 18;
-        bubble.style.left = `${6 + Math.random() * 88}%`;
-        bubble.style.width = `${size}px`;
-        bubble.style.height = `${size}px`;
-        bubble.style.animationDelay = `${i * 0.04}s`;
-        bubble.style.animationDuration = burst
-          ? `${2.0 + Math.random() * 0.9}s`
-          : `${2.4 + Math.random() * 1.4}s`;
-        fragment.appendChild(bubble);
-        window.setTimeout(() => bubble.remove(), 5000);
-      }
-      scrollBubbles.appendChild(fragment);
-    }
-
     function collapseExpandedWhenOutOfView() {
       if (!isMobileLayout()) return;
       const activeCards = rows.querySelectorAll('.song-card.expanded, .song-card.preview-visible');
@@ -588,58 +364,6 @@ function headersToObject(headers) {
     }
 
 
-    function sanitizeUtf16(text) {
-      const raw = String(text || '');
-      let sanitized = '';
-      for (let i = 0; i < raw.length; i += 1) {
-        const code = raw.charCodeAt(i);
-        const isHigh = code >= 0xD800 && code <= 0xDBFF;
-        const isLow = code >= 0xDC00 && code <= 0xDFFF;
-
-        if (isHigh) {
-          const next = raw.charCodeAt(i + 1);
-          const nextIsLow = next >= 0xDC00 && next <= 0xDFFF;
-          if (nextIsLow) {
-            sanitized += raw[i] + raw[i + 1];
-            i += 1;
-          }
-          continue;
-        }
-
-        if (isLow) {
-          continue;
-        }
-
-        sanitized += raw[i];
-      }
-      return sanitized;
-    }
-
-    function splitGraphemes(text) {
-      if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
-        const segmenter = new Intl.Segmenter('ja', { granularity: 'grapheme' });
-        return Array.from(segmenter.segment(text), ({ segment }) => segment);
-      }
-      return Array.from(text);
-    }
-
-    function normalizeMyEmoji(emoji) {
-      const safe = sanitizeUtf16((emoji || '').trim());
-      if (!safe) return '🙂';
-      const limited = splitGraphemes(safe).slice(0, 2).join('');
-      return limited || '🙂';
-    }
-
-    function buildMyDanmaku(emoji) {
-      const safeEmoji = normalizeMyEmoji(emoji);
-      return `🍣🧡${safeEmoji}🍣🧡${safeEmoji}🍣🧡${safeEmoji}👏`;
-    }
-
-    function buildMyDanmakuPreview(emoji) {
-      const safeEmoji = normalizeMyEmoji(emoji);
-      return `🍣🧡${safeEmoji}`;
-    }
-
     function updateMyDanmakuOptionLabel(inputValue = '') {
       const option = document.querySelector('#danmakuType option[value="my"]');
       if (!option) return;
@@ -650,56 +374,6 @@ function headersToObject(headers) {
         return;
       }
       option.textContent = DEFAULT_MY_DANMAKU_LABEL;
-    }
-
-    function saveMyDanmakuCache(text) {
-      const entry = { value: text, expiresAt: Date.now() + MY_DANMAKU_CACHE_MS };
-      state.myDanmaku = text;
-      try {
-        localStorage.setItem(MY_DANMAKU_CACHE_KEY, JSON.stringify(entry));
-      } catch (_) {}
-    }
-
-    function loadMyDanmakuCache() {
-      try {
-        const raw = localStorage.getItem(MY_DANMAKU_CACHE_KEY);
-        if (!raw) return '';
-        const entry = JSON.parse(raw);
-        if (!entry?.value || Date.now() > Number(entry.expiresAt || 0)) {
-          localStorage.removeItem(MY_DANMAKU_CACHE_KEY);
-          return '';
-        }
-        return String(entry.value);
-      } catch (_) {
-        return '';
-      }
-    }
-
-    function fmtDate(value) {
-      if (!value) return '-';
-      const d = new Date(value);
-      return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString('ja-JP');
-    }
-
-    function normalizeKind(kind) {
-      const raw = String(kind || '').trim();
-      if (!raw) return 'live';
-      const lowered = raw.toLowerCase();
-      if (KIND_MAP[lowered]) return KIND_MAP[lowered];
-      if (KIND_MAP[raw]) return KIND_MAP[raw];
-      if (lowered.includes('short') || raw.includes('ショート')) return 'short';
-      if (lowered.includes('cover') || raw.includes('歌ってみた') || raw.includes('歌みた')) return 'cover';
-      if (lowered.includes('live') || lowered.includes('stream') || raw.includes('歌枠') || raw.includes('配信')) return 'live';
-      return 'live';
-    }
-
-    function kindLabel(kind) {
-      return KIND_LABELS[kind] || 'その他';
-    }
-
-    function dateOf(item) {
-      const t = Date.parse(item?.publishedAt || '');
-      return Number.isNaN(t) ? 0 : t;
     }
 
     function eventTargetElement(target) {
@@ -757,75 +431,6 @@ function setupTapFocusRing() {
   }, true);
 }
 
-    function urlsFromText(text) {
-      if (!text) return [];
-      const matches = String(text).match(/https?:\/\/[^\s)]+/ig) || [];
-      return Array.from(new Set(matches.map((url) => url.trim()).filter(Boolean)));
-    }
-
-    function hrefUrlsFromHtml(text) {
-      if (!text) return [];
-      const source = String(text);
-      const urls = [];
-      const hrefPattern = /<a\b[^>]*\bhref\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/ig;
-      let match;
-      while ((match = hrefPattern.exec(source)) !== null) {
-        const candidate = normalizeExternalUrl(match[1] || match[2] || match[3]);
-        if (candidate) urls.push(candidate);
-      }
-      return Array.from(new Set(urls));
-    }
-
-    function normalizeExternalUrl(value) {
-      const url = String(value || '').trim();
-      return /^https?:\/\//i.test(url) ? url : '';
-    }
-
-    function bestExternalUrl(value) {
-      const direct = normalizeExternalUrl(value);
-      if (direct) return direct;
-
-      const hrefUrl = hrefUrlsFromHtml(value)[0];
-      if (hrefUrl) return hrefUrl;
-
-      return urlsFromText(value)[0] || '';
-    }
-
-    function resolveSingingTag(text) {
-      const raw = String(text || '').trim();
-      if (!raw) return { kind: 'live', label: '' };
-      const lowered = raw.toLowerCase();
-
-      if (lowered.includes('short') || raw.includes('ショート')) {
-        return { kind: 'short', label: 'ショート' };
-      }
-
-      if (lowered.includes('cover') || raw.includes('歌ってみた') || raw.includes('歌みた')) {
-        return { kind: 'cover', label: '歌ってみた' };
-      }
-
-      if (lowered.includes('live') || lowered.includes('stream') || raw.includes('歌枠') || raw.includes('配信')) {
-        return { kind: 'live', label: '' };
-      }
-
-      return { kind: 'live', label: '' };
-    }
-
-    function kindForFilter(item) {
-      const tagText = String(item?.singingTag || item?.memo || '').trim();
-      if (tagText) {
-        return resolveSingingTag(tagText).kind;
-      }
-      return normalizeKind(item?.kind);
-    }
-
-    function stableSongId(item) {
-      const videoId = String(item?.videoId || item?.videoid || item?.video_id || '').trim();
-      const title = String(item?.title || '').trim();
-      const artist = String(item?.artist || '').trim();
-      return [videoId, title, artist].map((part) => encodeURIComponent(part)).join('|');
-    }
-
     function isMobileLayout() {
       return window.matchMedia('(max-width: 768px)').matches;
     }
@@ -836,62 +441,8 @@ function setupTapFocusRing() {
       });
     }
 
-    async function copyTextToClipboard(text) {
-      const normalized = String(text || '').trim();
-      if (!normalized) return false;
-      try {
-        await navigator.clipboard.writeText(normalized);
-        return true;
-      } catch (_) {
-        try {
-          const fallbackInput = document.createElement('textarea');
-          fallbackInput.value = normalized;
-          fallbackInput.setAttribute('readonly', '');
-          fallbackInput.style.position = 'fixed';
-          fallbackInput.style.top = '-9999px';
-          document.body.appendChild(fallbackInput);
-          fallbackInput.focus();
-          fallbackInput.select();
-          const copied = document.execCommand('copy');
-          document.body.removeChild(fallbackInput);
-          return copied;
-        } catch (_) {
-          return false;
-        }
-      }
-    }
-
-    function sortItems(items) {
-      const sorted = [...items];
-      switch (state.sortMode) {
-        case 'artist-asc':
-          return sorted.sort((a, b) => String(a.artist || '').localeCompare(String(b.artist || ''), 'ja'));
-        case 'artist-desc':
-          return sorted.sort((a, b) => String(b.artist || '').localeCompare(String(a.artist || ''), 'ja'));
-        case 'title-asc':
-          return sorted.sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'ja'));
-        case 'title-desc':
-          return sorted.sort((a, b) => String(b.title || '').localeCompare(String(a.title || ''), 'ja'));
-        case 'date-asc':
-          return sorted.sort((a, b) => dateOf(a) - dateOf(b));
-        case 'date-desc':
-        default:
-          return sorted.sort((a, b) => dateOf(b) - dateOf(a));
-      }
-    }
-
     function filterItems(items) {
-      const q = state.q.toLowerCase();
-      const kinds = new Set(state.kinds);
-      return sortItems(
-        items
-          .filter((item) => kinds.has(kindForFilter(item)))
-          .filter((item) => {
-            if (!q) return true;
-            const target = [item.title, item.artist, item.memo].filter(Boolean).join(' ').toLowerCase();
-            return target.includes(q);
-          }),
-      );
+      return filterSongItems(items, state);
     }
 
     const META_FALLBACK_JSON_URLS =
@@ -908,11 +459,6 @@ function setupTapFocusRing() {
     // 一時的にブラウザからのGAS直フォールバックを無効化する。
     // 再実装時は true に戻すだけで既存コードを再利用できる。
     const ENABLE_GAS_FALLBACK = false;
-
-    function isPlaceholderUrl(url) {
-      const text = String(url || '').trim();
-      return text.includes('xxxxxxxx') || text.includes('<') || text.includes('example.com');
-    }
 
     const SONGS_JSON_URL_OVERRIDE = [
       window.__SONGS_JSON_URL__,
@@ -1001,15 +547,6 @@ function setupTapFocusRing() {
 
     }
 
-    function insertTextIntoMemo(memoInput, text) {
-      if (!memoInput) return;
-      const safeText = String(text ?? '');
-      const start = Number.isInteger(memoInput.selectionStart) ? memoInput.selectionStart : memoInput.value.length;
-      const end = Number.isInteger(memoInput.selectionEnd) ? memoInput.selectionEnd : memoInput.value.length;
-      memoInput.setRangeText(safeText, start, end, 'end');
-      memoInput.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
     async function pasteMemo() {
       const memoInput = byId('memoInput');
       if (!memoInput) return;
@@ -1077,9 +614,14 @@ function setupTapFocusRing() {
         errorLogWrap.hidden = true;
       }
 
+      const rerenderSearch = debounce(
+        rerenderOrLoadSongs,
+        SEARCH_DEBOUNCE_MS,
+      );
+
       byId('q').addEventListener('input', (e) => {
         state.q = e.target.value.trim();
-        rerenderOrLoadSongs();
+        rerenderSearch();
       });
 
       byId('kindCover').addEventListener('change', () => toggleKind('cover'));
@@ -1099,6 +641,7 @@ function setupTapFocusRing() {
       });
 
       byId('clear').addEventListener('click', () => {
+        rerenderSearch.cancel();
         state.q = '';
         byId('q').value = '';
         rerenderOrLoadSongs();
@@ -1125,6 +668,7 @@ function setupTapFocusRing() {
         emojiInput.value = safeEmoji;
 
         const text = buildMyDanmaku(safeEmoji);
+        state.myDanmaku = text;
         saveMyDanmakuCache(text);
         updateMyDanmakuOptionLabel(safeEmoji);
 
@@ -1190,6 +734,15 @@ function setupTapFocusRing() {
         syncTopPanelSize();
       };
 
+      const scheduleViewportLayoutUpdate = rafThrottle(() => {
+        updateTopFormCollapseByScroll();
+        updateScrollTopOffset();
+      });
+      const scheduleRowsVisibilityUpdate = rafThrottle(() => {
+        updateTopFormCollapseByScroll();
+        collapseExpandedWhenOutOfView();
+      });
+
       const MIN_BUBBLE_INTERVAL_MS = 48;
       const MIN_SCROLL_DELTA_FOR_BUBBLE = 3;
       let lastBubbleAt = 0;
@@ -1199,12 +752,6 @@ function setupTapFocusRing() {
       let lastRowsBubbleAt = Date.now();
       let cachedCardHeight = 44;
       let cachedCardHeightAt = 0;
-
-      const computeBubbleIntensity = (deltaPx, elapsedMs, cardHeight) => {
-        const normalizedDistance = deltaPx / Math.max(1, cardHeight);
-        const velocityBoost = deltaPx / Math.max(16, elapsedMs * 4);
-        return normalizedDistance * (1 + velocityBoost);
-      };
 
       const getCardHeight = (now) => {
         if (now - cachedCardHeightAt <= 240) return cachedCardHeight;
@@ -1223,12 +770,16 @@ function setupTapFocusRing() {
         if (intensity < 0.4) return;
         lastBubbleAt = now;
         const mode = intensity >= 10 ? 'burst' : 'normal';
-        createScrollBubbles(mode, intensity);
+        createScrollBubbles({
+          container: scrollBubbles,
+          mode,
+          intensity,
+          disabled: isDesktopMotionOffMode(),
+        });
       };
 
       window.addEventListener('scroll', () => {
-        updateTopFormCollapseByScroll();
-        updateScrollTopOffset();
+        scheduleViewportLayoutUpdate();
 
         const now = Date.now();
         const deltaWindow = Math.abs(window.scrollY - lastWindowScrollTop);
@@ -1240,7 +791,7 @@ function setupTapFocusRing() {
         lastWindowBubbleAt = now;
       });
 
-      window.addEventListener('resize', updateScrollTopOffset);
+      window.addEventListener('resize', scheduleViewportLayoutUpdate);
 
       rows.addEventListener('scroll', () => {
         const now = Date.now();
@@ -1253,8 +804,7 @@ function setupTapFocusRing() {
         previousRowsScrollTop = rows.scrollTop;
         lastRowsBubbleAt = now;
 
-        updateTopFormCollapseByScroll();
-        collapseExpandedWhenOutOfView();
+        scheduleRowsVisibilityUpdate();
       });
 
 
@@ -1275,7 +825,13 @@ function setupTapFocusRing() {
 export function initializeApp() {
     registerServiceWorker();
     setupTapFocusRing();
-    setupInstallHelpPopover();
+    setupInstallHelpPopover({
+      statusShell,
+      installHelpPopover,
+      installHelpBody,
+      installHelpAction,
+      installHelpClose,
+    });
     byId('sortField').value = state.sortField;
     byId('sortOrder').value = state.sortOrder;
     state.sortMode = `${state.sortField}-${state.sortOrder}`;
