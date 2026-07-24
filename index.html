@@ -20,12 +20,16 @@
   <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
   <link rel="manifest" href="assets/icons/site.webmanifest">
   <meta name="theme-color" content="#f4a645">
-  <link rel="stylesheet" href="assets/styles.css?v=5">
+  <link rel="stylesheet" href="assets/styles.css?v=7">
 </head>
 <body>
   <div id="scrollBubbles" class="scroll-bubbles" aria-hidden="true"></div>
   <main class="container" id="songsPage">
     <section class="card ui-card top-form" id="topForm">
+      <nav class="compact-view-switch" id="topViewSwitcher" aria-label="上部機能の切り替え">
+        <button class="view-switch-button active" type="button" data-card-index="0" aria-pressed="true">絞り込み</button>
+        <button class="view-switch-button" type="button" data-card-index="1" aria-pressed="false">メモ</button>
+      </nav>
       <div class="page-indicator top-indicator" id="topPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
       <div class="top-swipe-wrap" id="topSwipeWrap">
         <div class="top-swipe-track" id="topSwipeTrack">
@@ -116,6 +120,10 @@
         <strong>検索と弾幕</strong>
         <p>楽曲を探して、配信で使う弾幕をすぐにコピーできます。</p>
       </div>
+      <nav class="compact-view-switch" id="bottomViewSwitcher" aria-label="下部機能の切り替え">
+        <button class="view-switch-button active" type="button" data-card-index="0" aria-pressed="true">検索</button>
+        <button class="view-switch-button" type="button" data-card-index="1" aria-pressed="false">弾幕編集</button>
+      </nav>
       <div class="page-indicator bottom-indicator" id="bottomPageIndicator" aria-hidden="true"><span class="dot active"></span><span class="dot"></span></div>
       <div class="bottom-swipe-wrap" id="bottomSwipeWrap">
         <div class="bottom-swipe-track" id="bottomSwipeTrack">
@@ -185,7 +193,7 @@
   <div id="toast" class="toast" aria-live="polite" role="status"></div>
 
   <script type="module">
-    import { bind, setupTopSwipe, setupBottomSwipe, initializeApp } from './src/app.js?v=6';
+    import { bind, setupTopSwipe, setupBottomSwipe, initializeApp } from './src/app.js?v=7';
 
     bind();
     setupTopSwipe();
