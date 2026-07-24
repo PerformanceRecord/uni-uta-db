@@ -1,9 +1,9 @@
 const CACHE_PREFIX = 'uni-uta-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v5`;
 const APP_SHELL = [
   './index.html',
-  './assets/styles.css?v=4',
-  './src/app.js?v=4',
+  './assets/styles.css?v=5',
+  './src/app.js?v=5',
   './src/data/songsApi.js',
   './src/domain/songCatalog.js',
   './src/features/danmaku.js',
@@ -13,12 +13,12 @@ const APP_SHELL = [
   './src/platform/storage.js',
   './src/state/appState.js',
   './src/ui/dom.js',
+  './src/ui/panelLayout.js',
   './src/ui/renderSongs.js',
   './src/ui/status.js',
   './src/ui/swipeTrack.js',
   './src/utils/scheduling.js',
   './assets/icons/site.webmanifest',
-  './assets/icons/favicon.svg',
   './assets/icons/apple-touch-icon.png',
 ];
 
