@@ -128,6 +128,9 @@ export function setupSwipeTrack({
   track.addEventListener('pointerdown', (event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
 
+    const directActionTarget = event.target?.closest?.('button, a');
+    if (directActionTarget) return;
+
     const interactiveTarget = event.target?.closest?.(
       'button, input, select, textarea, label, a',
     );

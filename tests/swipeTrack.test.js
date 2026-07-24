@@ -123,4 +123,39 @@ describe('swipeTrack', () => {
 
     expect(selected).toEqual(['1']);
   });
+
+  it('タッチ操作でもボタン上ではスワイプを開始しない', () => {
+    const listeners = {};
+    const classNames = new Set();
+    const track = {
+      style: {},
+      classList: {
+        add: (name) => classNames.add(name),
+        remove: (name) => classNames.delete(name),
+      },
+      addEventListener: (type, listener) => {
+        listeners[type] = listener;
+      },
+    };
+    setupSwipeTrack({
+      wrap: { clientWidth: 300 },
+      track,
+      allowInteractiveStart: true,
+    });
+
+    listeners.pointerdown({
+      button: 0,
+      clientX: 100,
+      clientY: 20,
+      pointerId: 1,
+      pointerType: 'touch',
+      target: {
+        closest: (selector) => (
+          selector === 'button, a' ? { tagName: 'BUTTON' } : null
+        ),
+      },
+    });
+
+    expect(classNames.has('dragging')).toBe(false);
+  });
 });

@@ -246,7 +246,7 @@ h2 { margin: 0 0 var(--space-2); font-size: 16px; }
   }
 }
 
-@media (pointer: fine) {
+@media (any-pointer: fine) {
   .status-shell,
   .status-shell::before,
   .status-dot,
@@ -761,7 +761,7 @@ a:focus-visible,
   display: none;
 }
 
-@media (max-width: 1099px) and (pointer: fine) {
+@media (max-width: 1099px) and (any-pointer: fine) {
   .top-fold-btn,
   .top-expand-btn {
     display: none !important;
@@ -1545,6 +1545,8 @@ button.song-date-link {
     padding: 1px;
     grid-auto-rows: max-content;
     align-content: start;
+    overflow-anchor: none;
+    overscroll-behavior-y: contain;
     scrollbar-width: none;
   }
 

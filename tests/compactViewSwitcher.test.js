@@ -20,7 +20,7 @@ describe('compact browser view switcher', () => {
 
   it('縮小ブラウザのマウス操作時だけ表示する', () => {
     const mediaStart = styles.indexOf(
-      '@media (max-width: 1099px) and (pointer: fine)',
+      '@media (max-width: 1099px) and (any-pointer: fine)',
     );
     const mediaEnd = styles.indexOf('@keyframes swipe-hint', mediaStart);
     const compactDesktopStyles = styles.slice(mediaStart, mediaEnd);
