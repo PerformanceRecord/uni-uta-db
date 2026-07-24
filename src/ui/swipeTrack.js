@@ -81,10 +81,14 @@ export function setupSwipeTrack({
 
     dragging = false;
     track.classList.remove('dragging');
-    if (
-      typeof track.hasPointerCapture !== 'function'
-      || track.hasPointerCapture(pointerId)
-    ) {
+    const canReleasePointer = (
+      typeof track.releasePointerCapture === 'function'
+      && (
+        typeof track.hasPointerCapture !== 'function'
+        || track.hasPointerCapture(pointerId)
+      )
+    );
+    if (canReleasePointer) {
       track.releasePointerCapture(pointerId);
     }
 
@@ -120,7 +124,9 @@ export function setupSwipeTrack({
     gestureIsHorizontal = false;
     pointerId = event.pointerId;
     track.classList.add('dragging');
-    track.setPointerCapture(pointerId);
+    if (typeof track.setPointerCapture === 'function') {
+      track.setPointerCapture(pointerId);
+    }
   });
 
   track.addEventListener('pointermove', onPointerMove);
