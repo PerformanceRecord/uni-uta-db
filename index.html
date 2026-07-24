@@ -20,9 +20,10 @@
   <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
   <link rel="manifest" href="assets/icons/site.webmanifest">
   <meta name="theme-color" content="#f4a645">
-  <link rel="stylesheet" href="assets/styles.css?v=9">
+  <link rel="stylesheet" href="assets/styles.css?v=10">
 </head>
 <body>
+  <div class="water-light" aria-hidden="true"></div>
   <div id="scrollBubbles" class="scroll-bubbles" aria-hidden="true"></div>
   <main class="container" id="songsPage">
     <section class="card ui-card top-form" id="topForm">
@@ -111,6 +112,7 @@
           <span class="legend-short">ショート</span>
         </div>
       </header>
+      <div id="mobileScrollProgress" class="mobile-scroll-progress" aria-hidden="true"><span></span></div>
       <div id="rows" class="song-cards"></div>
     </section>
 
@@ -193,7 +195,7 @@
   <div id="toast" class="toast" aria-live="polite" role="status"></div>
 
   <script type="module">
-    import { bind, setupTopSwipe, setupBottomSwipe, initializeApp } from './src/app.js?v=9';
+    import { bind, setupTopSwipe, setupBottomSwipe, initializeApp } from './src/app.js?v=10';
 
     bind();
     setupTopSwipe();
@@ -202,3 +204,4 @@
   </script>
 </body>
 </html>
+

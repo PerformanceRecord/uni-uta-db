@@ -63,13 +63,15 @@ describe('service worker', () => {
     });
     await installTask;
 
-    expect(context.caches.open).toHaveBeenCalledWith('uni-uta-shell-v9');
+    expect(context.caches.open).toHaveBeenCalledWith('uni-uta-shell-v10');
     const shellFiles = context.cache.addAll.mock.calls[0][0];
     expect(shellFiles).toContain('./index.html');
-    expect(shellFiles).toContain('./assets/styles.css?v=9');
-    expect(shellFiles).toContain('./src/app.js?v=9');
-    expect(shellFiles).toContain('./src/ui/panelLayout.js?v=9');
-    expect(shellFiles).toContain('./src/ui/swipeTrack.js?v=9');
+    expect(shellFiles).toContain('./assets/styles.css?v=10');
+    expect(shellFiles).toContain('./src/app.js?v=10');
+    expect(shellFiles).toContain('./src/ui/mobileEffects.js?v=10');
+    expect(shellFiles).toContain('./src/ui/renderSongs.js?v=10');
+    expect(shellFiles).toContain('./src/ui/panelLayout.js?v=10');
+    expect(shellFiles).toContain('./src/ui/swipeTrack.js?v=10');
     expect(shellFiles).toContain('./src/features/danmaku.js');
     expect(shellFiles).toContain('./src/platform/storage.js');
     expect(context.self.skipWaiting).toHaveBeenCalledOnce();
@@ -78,7 +80,7 @@ describe('service worker', () => {
   it('activate時に旧シェルキャッシュだけを削除する', async () => {
     context.caches.keys.mockResolvedValue([
       'uni-uta-shell-old',
-      'uni-uta-shell-v9',
+      'uni-uta-shell-v10',
       'unrelated-cache',
     ]);
     let activateTask;
@@ -276,3 +278,4 @@ describe('service worker', () => {
     await expect(responseTask).rejects.toThrow('offline');
   });
 });
+

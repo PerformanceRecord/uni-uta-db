@@ -17,6 +17,8 @@
 - `src/features/danmaku.js`: カスタム弾幕のUnicode処理・生成・期限付きキャッシュ
 - `src/features/scrollBubbles.js`: 泡演出の強度・個数・DOM生成
 - `src/platform/*.js`: PWAとクリップボードのブラウザ依存処理
+- `src/ui/mobileEffects.js`: モバイル限定の水紋・コピー反応・スケルトン・スクロール進捗
+- `src/ui/renderSongs.js`: 楽曲カード描画・安全な検索語ハイライト
 - `src/ui/swipeTrack.js`: 上下フォームのスワイプ制御
 - `src/utils/scheduling.js`: 検索デバウンス・描画フレーム制御
 - `sw.js`: 同一オリジンのアプリシェル用Service Worker
@@ -275,3 +277,4 @@ bash scripts/verify_r2_upload_and_read.sh
 - フロント: `index.html` からR2公開URLの `songs.json` を直接取得
 
 フロントは `songs.json` が「配列形式」「{ items: [] } 形式」の両方を受け取れます。
+
