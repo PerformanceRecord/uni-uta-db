@@ -63,11 +63,13 @@ describe('service worker', () => {
     });
     await installTask;
 
-    expect(context.caches.open).toHaveBeenCalledWith('uni-uta-shell-v7');
+    expect(context.caches.open).toHaveBeenCalledWith('uni-uta-shell-v8');
     const shellFiles = context.cache.addAll.mock.calls[0][0];
     expect(shellFiles).toContain('./index.html');
     expect(shellFiles).toContain('./assets/styles.css?v=7');
-    expect(shellFiles).toContain('./src/app.js?v=7');
+    expect(shellFiles).toContain('./src/app.js?v=8');
+    expect(shellFiles).toContain('./src/ui/panelLayout.js?v=8');
+    expect(shellFiles).toContain('./src/ui/swipeTrack.js?v=8');
     expect(shellFiles).toContain('./src/features/danmaku.js');
     expect(shellFiles).toContain('./src/platform/storage.js');
     expect(context.self.skipWaiting).toHaveBeenCalledOnce();
@@ -76,7 +78,7 @@ describe('service worker', () => {
   it('activate時に旧シェルキャッシュだけを削除する', async () => {
     context.caches.keys.mockResolvedValue([
       'uni-uta-shell-old',
-      'uni-uta-shell-v7',
+      'uni-uta-shell-v8',
       'unrelated-cache',
     ]);
     let activateTask;
