@@ -19,4 +19,13 @@ describe('mobile interactions', () => {
     expect(styles).toContain('overflow-anchor: none;');
     expect(styles).toContain('overscroll-behavior-y: contain;');
   });
+
+  it('最上端で上部パネルを展開する間は楽曲一覧を固定する', () => {
+    expect(appSource).toContain('stabilizeRowsAtTop');
+    expect(appSource).toContain('scroll-top-stabilizing');
+    expect(styles).toContain(
+      '.top-form.scroll-top-stabilizing .top-swipe-wrap',
+    );
+    expect(styles).toContain('transition: none !important;');
+  });
 });

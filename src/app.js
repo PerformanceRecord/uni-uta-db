@@ -1,7 +1,7 @@
 import { state, DEFAULT_KINDS } from './state/appState.js';
 import { byId } from './ui/dom.js';
 import { setStatus, setLoadingStatus, setRunningStatus, setStoppedStatus, setErrorStatus } from './ui/status.js';
-import { render } from './ui/renderSongs.js?v=10';
+import { render } from './ui/renderSongs.js?v=11';
 import { load } from './data/songsApi.js';
 import {
   bestExternalUrl,
@@ -37,18 +37,19 @@ import {
   setupSwipeTrack,
   updatePageIndicator,
   updateViewSwitcher,
-} from './ui/swipeTrack.js?v=10';
+} from './ui/swipeTrack.js?v=11';
 import {
   playMobileCardRipple,
   renderMobileLoadingSkeleton,
   showMobileCopyFeedback,
   updateMobileScrollProgress,
-} from './ui/mobileEffects.js?v=10';
+} from './ui/mobileEffects.js?v=11';
 import {
   calculateMiddlePanelInsets,
+  isTopMenuBeyondAutoCollapseBoundary,
   resolveTopMenuCollapsed,
   shouldAutoCollapseTopMenu,
-} from './ui/panelLayout.js?v=10';
+} from './ui/panelLayout.js?v=11';
 import { debounce, rafThrottle } from './utils/scheduling.js';
 
 const CACHE_PREFIX = 'songs-cache-v3';
@@ -207,10 +208,29 @@ function applyTopFormCollapsedState() {
   topForm.classList.toggle('collapsed', shouldCollapse);
 }
 
-function setTopMenuCollapsed(nextCollapsed) {
+function setTopMenuCollapsed(
+  nextCollapsed,
+  { stabilizeRowsAtTop = false } = {},
+) {
+  const topForm = byId('topForm');
+  if (stabilizeRowsAtTop) {
+    topForm?.classList.add('scroll-top-stabilizing');
+    if (rows) rows.scrollTop = 0;
+  }
+
   topMenuCollapsed = Boolean(nextCollapsed);
   applyTopFormCollapsedState();
   syncTopPanelSize();
+
+  if (stabilizeRowsAtTop) {
+    window.requestAnimationFrame(() => {
+      if (rows) rows.scrollTop = 0;
+      window.requestAnimationFrame(() => {
+        if (rows) rows.scrollTop = 0;
+        topForm?.classList.remove('scroll-top-stabilizing');
+      });
+    });
+  }
 }
 
 function syncTopPanelSize() {
@@ -746,14 +766,29 @@ function bind() {
       : 0;
     const cardHeight = (cardMinHeight || 74) + rowGap;
     const collapseThreshold = cardHeight * 2;
+    const expandThreshold = 1;
     const currentScrollTop = rows?.scrollTop ?? window.scrollY;
+    const beyondThreshold = isTopMenuBeyondAutoCollapseBoundary({
+      currentlyCollapsed: topMenuCollapsed,
+      scrollTop: currentScrollTop,
+      collapseThreshold,
+      expandThreshold,
+    });
     const shouldCollapse = resolveTopMenuCollapsed({
       autoCollapseEnabled,
       manualMode: topMenuManualMode,
-      beyondThreshold: currentScrollTop > collapseThreshold,
+      beyondThreshold,
     });
     if (shouldCollapse === topMenuCollapsed) return;
-    setTopMenuCollapsed(shouldCollapse);
+    const autoExpandingAtTop = (
+      topMenuCollapsed
+      && !shouldCollapse
+      && topMenuManualMode === ''
+      && currentScrollTop <= expandThreshold
+    );
+    setTopMenuCollapsed(shouldCollapse, {
+      stabilizeRowsAtTop: autoExpandingAtTop,
+    });
   };
 
   const updateScrollTopOffset = () => {
@@ -933,4 +968,3 @@ export function initializeApp() {
 }
 
 export { bind, setupTopSwipe, setupBottomSwipe };
-

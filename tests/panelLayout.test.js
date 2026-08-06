@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateMiddlePanelInsets,
+  isTopMenuBeyondAutoCollapseBoundary,
   resolveTopMenuCollapsed,
   shouldAutoCollapseTopMenu,
 } from '../src/ui/panelLayout.js';
@@ -65,6 +66,27 @@ describe('panel layout', () => {
       autoCollapseEnabled: false,
       manualMode: 'collapsed',
       beyondThreshold: true,
+    })).toBe(false);
+  });
+
+  it('自動収納後は楽曲一覧が最上端へ着くまで展開しない', () => {
+    expect(isTopMenuBeyondAutoCollapseBoundary({
+      currentlyCollapsed: false,
+      scrollTop: 161,
+      collapseThreshold: 160,
+      expandThreshold: 1,
+    })).toBe(true);
+    expect(isTopMenuBeyondAutoCollapseBoundary({
+      currentlyCollapsed: true,
+      scrollTop: 120,
+      collapseThreshold: 160,
+      expandThreshold: 1,
+    })).toBe(true);
+    expect(isTopMenuBeyondAutoCollapseBoundary({
+      currentlyCollapsed: true,
+      scrollTop: 1,
+      collapseThreshold: 160,
+      expandThreshold: 1,
     })).toBe(false);
   });
 });

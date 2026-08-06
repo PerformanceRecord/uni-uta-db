@@ -44,9 +44,8 @@ describe('lightweight decorative effects', () => {
     expect(reducedMotionStyles).toContain('animation: none !important;');
   });
 
-  it('リリース資産はv10で統一する', () => {
-    expect(indexHtml).toContain('assets/styles.css?v=10');
-    expect(indexHtml).toContain('./src/app.js?v=10');
+  it('リリース資産はv11で統一する', () => {
+    expect(indexHtml).toContain('assets/styles.css?v=11');
+    expect(indexHtml).toContain('./src/app.js?v=11');
   });
 });
-
