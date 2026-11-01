@@ -5,8 +5,8 @@ export async function copyTextToClipboard(
     documentRef = globalThis.document,
   } = {},
 ) {
-  const normalized = String(text || '').trim();
-  if (!normalized) return false;
+  const normalized = String(text ?? '');
+  if (!normalized.trim()) return false;
 
   try {
     await navigatorRef.clipboard.writeText(normalized);
@@ -53,3 +53,4 @@ export function insertTextIntoMemo(
   memoInput.dispatchEvent(new EventCtor('input', { bubbles: true }));
   return true;
 }
+

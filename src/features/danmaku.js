@@ -69,7 +69,7 @@ export function buildMyDanmakuPreview(emoji) {
 export function saveMyDanmakuCache(
   text,
   {
-    storage = globalThis.localStorage,
+    storage,
     cacheKey = MY_DANMAKU_CACHE_KEY,
     ttlMs = MY_DANMAKU_CACHE_MS,
     now = Date.now,
@@ -85,7 +85,7 @@ export function saveMyDanmakuCache(
 
 export function loadMyDanmakuCache(
   {
-    storage = globalThis.localStorage,
+    storage,
     cacheKey = MY_DANMAKU_CACHE_KEY,
     now = Date.now,
   } = {},
@@ -112,3 +112,4 @@ export function loadMyDanmakuCache(
     return '';
   }
 }
+

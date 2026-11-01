@@ -5,13 +5,13 @@ import {
 } from '../src/platform/clipboard.js';
 
 describe('clipboard', () => {
-  it('Clipboard APIで前後空白を除いた文字列をコピーする', async () => {
+  it('Clipboard APIで前後空白と改行を維持した文字列をコピーする', async () => {
     const writeText = vi.fn(async () => {});
 
-    await expect(copyTextToClipboard('  text  ', {
+    await expect(copyTextToClipboard('  text  \n', {
       navigatorRef: { clipboard: { writeText } },
     })).resolves.toBe(true);
-    expect(writeText).toHaveBeenCalledWith('text');
+    expect(writeText).toHaveBeenCalledWith('  text  \n');
   });
 
   it('Clipboard API失敗時はtextarea方式へフォールバックする', async () => {
@@ -65,3 +65,4 @@ describe('clipboard', () => {
     expect(memoInput.dispatchEvent).toHaveBeenCalledWith(inputEvent);
   });
 });
+

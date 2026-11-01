@@ -103,12 +103,14 @@ export function extractVideoPreview(url) {
     return null;
   }
 
+  if (!['http:', 'https:'].includes(parsed.protocol)) return null;
   const host = parsed.hostname.toLowerCase();
+  const isHost = (domain) => host === domain || host.endsWith(`.${domain}`);
   const path = parsed.pathname;
 
-  if (host.includes('youtube.com') || host.includes('youtu.be')) {
+  if (isHost('youtube.com') || isHost('youtu.be')) {
     let videoId = '';
-    if (host.includes('youtu.be')) {
+    if (isHost('youtu.be')) {
       videoId = path.split('/').filter(Boolean)[0] || '';
     } else {
       videoId = parsed.searchParams.get('v') || '';
@@ -123,7 +125,7 @@ export function extractVideoPreview(url) {
     };
   }
 
-  if (host.includes('nicovideo.jp') || host.includes('nico.ms')) {
+  if (isHost('nicovideo.jp') || isHost('nico.ms')) {
     const idMatch = `${parsed.pathname}${parsed.search}${parsed.hash}`.match(/(?:sm|nm|so)\d+/i);
     if (!idMatch) return null;
     const videoId = idMatch[0].toLowerCase();
@@ -311,4 +313,5 @@ export function render(items, totals = {}, deps = {}) {
 
   rows.removeAttribute('aria-busy');
 }
+
 
