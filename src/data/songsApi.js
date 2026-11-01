@@ -128,21 +128,33 @@ export async function fetchWithTimeout(
   {
     timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
     fetchImpl = fetch,
+    consumeResponse = (response) => response,
   } = {},
 ) {
   const normalizedTimeoutMs = Number(timeoutMs);
   if (!Number.isFinite(normalizedTimeoutMs) || normalizedTimeoutMs <= 0) {
-    return fetchImpl(url, options);
+    return consumeResponse(await fetchImpl(url, options));
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), normalizedTimeoutMs);
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error(`Request timed out after ${normalizedTimeoutMs} ms`);
+      error.name = 'TimeoutError';
+      reject(error);
+      controller.abort();
+    }, normalizedTimeoutMs);
+  });
 
   try {
-    return await fetchImpl(url, {
-      ...options,
-      signal: controller.signal,
-    });
+    return await Promise.race([
+      (async () => consumeResponse(await fetchImpl(url, {
+        ...options,
+        signal: controller.signal,
+      })))(),
+      timeout,
+    ]);
   } catch (error) {
     if (controller.signal.aborted) {
       const timeoutError = new Error(
@@ -227,6 +239,7 @@ export async function load(ctx) {
 
   try {
     let res = null;
+    let dataset = null;
     let lastError = null;
     const requestAttemptLogs = [];
 
@@ -246,7 +259,21 @@ export async function load(ctx) {
               ? { 'If-None-Match': cached.etag }
               : {},
           },
-          { timeoutMs: requestTimeoutMs },
+          {
+            timeoutMs: requestTimeoutMs,
+            consumeResponse: async (response) => {
+              if (!response.ok || response.status === 304) return { response };
+              let payload;
+              try {
+                payload = await response.json();
+              } catch (cause) {
+                const error = new Error('JSON parse failed', { cause });
+                error.name = 'JsonParseError';
+                throw error;
+              }
+              return { response, dataset: normalizeSongsPayload(payload) };
+            },
+          },
         );
       } catch (fetchError) {
         lastError = fetchError;
@@ -254,17 +281,20 @@ export async function load(ctx) {
           url: candidateUrl,
           status: fetchError?.name === 'TimeoutError'
             ? 'timeout'
-            : 'network_error',
+            : fetchError?.name || 'network_error',
         });
         continue;
       }
 
+      const candidateDataset = candidateResponse.dataset;
+      candidateResponse = candidateResponse.response;
       requestAttemptLogs.push({
         url: candidateUrl,
         status: candidateResponse.status,
       });
       if (candidateResponse.ok || candidateResponse.status === 304) {
         res = candidateResponse;
+        dataset = candidateDataset;
         break;
       }
 
@@ -293,7 +323,11 @@ export async function load(ctx) {
       throw httpError;
     }
 
-    if (!res) throw lastError || new Error('Fetch failed');
+    if (!res) {
+      const error = lastError || new Error('Fetch failed');
+      error.details = { ...error.details, attempts: requestAttemptLogs };
+      throw error;
+    }
 
     if (res.status === 304) {
       if (!cached || !cachedView) {
@@ -315,22 +349,6 @@ export async function load(ctx) {
       };
     }
 
-    let rawPayload;
-    try {
-      rawPayload = await res.json();
-    } catch (jsonError) {
-      const parseError = new Error('JSON parse failed');
-      parseError.name = 'JsonParseError';
-      parseError.details = {
-        status: res.status,
-        statusText: res.statusText,
-        headers: headersToObject(res.headers),
-      };
-      parseError.cause = jsonError;
-      throw parseError;
-    }
-
-    const dataset = normalizeSongsPayload(rawPayload);
     const etag = res.headers.get('etag') || '';
     const cacheEntry = {
       etag,
@@ -395,3 +413,4 @@ export async function load(ctx) {
     return null;
   }
 }
+

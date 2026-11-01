@@ -1,8 +1,9 @@
 export function readStorageItem(
   key,
-  storage = globalThis.localStorage,
+  storage,
 ) {
   try {
+    storage ??= globalThis.localStorage;
     return storage?.getItem?.(String(key)) ?? null;
   } catch (_) {
     return null;
@@ -12,9 +13,10 @@ export function readStorageItem(
 export function writeStorageItem(
   key,
   value,
-  storage = globalThis.localStorage,
+  storage,
 ) {
   try {
+    storage ??= globalThis.localStorage;
     if (typeof storage?.setItem !== 'function') return false;
     storage.setItem(String(key), String(value));
     return true;
@@ -25,9 +27,10 @@ export function writeStorageItem(
 
 export function removeStorageItem(
   key,
-  storage = globalThis.localStorage,
+  storage,
 ) {
   try {
+    storage ??= globalThis.localStorage;
     if (typeof storage?.removeItem !== 'function') return false;
     storage.removeItem(String(key));
     return true;
@@ -35,3 +38,4 @@ export function removeStorageItem(
     return false;
   }
 }
+
